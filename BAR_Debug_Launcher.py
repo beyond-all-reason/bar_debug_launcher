@@ -12,6 +12,7 @@ import shlex
 cwd = os.getcwd()
 
 enginepaths = []
+enginedirs = {}
 datafolder = 'data'
 enginefolder = 'data\\engine'
 if os.path.exists(enginefolder) :
@@ -21,9 +22,14 @@ if os.path.exists(enginefolder) :
             enginepath = os.path.join(enginedir, 'spring.exe')
             print ("Found engine in path:", enginepath)
             enginepaths.append(enginepath)
+            enginedirs[enginepath] = file
 enginepaths = sorted(enginepaths)
+if len(enginepaths) == 0:
+    enginepaths.append("NO ENGINES FOUND!")
 #check for bar.sdd
 modinfos = {}
+modinfos['Spring-launcher with BYAR Chobby $VERSION'] = {'modtype': '0', 'name':'BYAR Chobby $VERSION'}
+modinfos['Spring-launcher with rapid://byar-chobby:test'] = {'modtype': '0', 'name':'rapid://byar-chobby:test'}
 modinfos['rapid://byar-chobby:test'] = {'name' : 'rapid://byar-chobby:test', 'version' :'' , 'modtype' : '5'}
 modinfos['rapid://byar:test'] = {'name' : 'rapid://byar:test', 'version' :'' , 'modtype' : '1'}
 #assume rapid://byar-chobby:test
@@ -100,8 +106,36 @@ def gencmd(event):
     myengine = selected_engine.get()
     if modinfos[mygame]['modtype'] == '5':
         runcmd = f'"{os.path.join(cwd,myengine)}"  --isolation --write-dir "{os.path.join(cwd, datafolder)}" --menu "{mygame}"'
-    else:
+    elif modinfos[mygame]['modtype'] == '1':
         runcmd = f'"{os.path.join(cwd,myengine)}"  --isolation --write-dir "{os.path.join(cwd, datafolder)}"'
+    elif modinfos[mygame]['modtype'] == '0':
+        configdev = "bar_debug_launcher_config.json"
+        bar_debug_launcher_config_file = open(configdev,'w')
+        bar_debug_launcher_config_file.write(
+        """{
+            "title": "Beyond All Reason",
+            "setups": [
+                {
+                    "package": {
+                        "id": "dev-lobby",
+                        "display": "Dev Lobby"
+                    },
+                    "downloads": {
+                        "engines": ["%s"]
+                    },
+                    "no_start_script": true,
+                    "no_downloads": true,
+                    "auto_start": true,
+                    "launch": {
+                        "start_args": ["--menu", "%s"]
+                    }
+                }
+            ]
+        }"""%(enginedirs[myengine], modinfos[mygame]['name']))
+        bar_debug_launcher_config_file.close()
+
+        runcmd = f'"{os.path.join(cwd,"Beyond-All-Reason.exe")}" -c "{os.path.join(cwd,configdev)}"'
+
     print (runcmd)
     cmdtext.delete('1.0', tk.END)
     cmdtext.insert('1.0', str(runcmd))
