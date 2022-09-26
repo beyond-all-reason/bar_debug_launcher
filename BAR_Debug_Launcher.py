@@ -11,50 +11,65 @@ import shlex
 #Grab all engine versions
 cwd = os.getcwd()
 
+modinfos = {}
 enginepaths = []
 enginedirs = {}
 datafolder = 'data'
 enginefolder = 'data\\engine'
-if os.path.exists(enginefolder) :
-    for file in os.listdir(enginefolder):
-        enginedir = os.path.join(enginefolder,file)
-        if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, 'spring.exe')):
-            enginepath = os.path.join(enginedir, 'spring.exe')
-            print ("Found engine in path:", enginepath)
-            enginepaths.append(enginepath)
-            enginedirs[enginepath] = file
-enginepaths = sorted(enginepaths)
-if len(enginepaths) == 0:
-    enginepaths.append("NO ENGINES FOUND!")
-#check for bar.sdd
-modinfos = {}
-modinfos['Spring-launcher with BYAR Chobby $VERSION'] = {'modtype': '0', 'name':'BYAR Chobby $VERSION'}
-modinfos['Spring-launcher with rapid://byar-chobby:test'] = {'modtype': '0', 'name':'rapid://byar-chobby:test'}
-modinfos['rapid://byar-chobby:test'] = {'name' : 'rapid://byar-chobby:test', 'version' :'' , 'modtype' : '5'}
-modinfos['rapid://byar:test'] = {'name' : 'rapid://byar:test', 'version' :'' , 'modtype' : '1'}
-#assume rapid://byar-chobby:test
-#assume rapid://byar:test
+maps = []
+
 
 def parsemodinfo(path):
     modinfo = {}
     for line in open(path).readlines():
-        line = line.partition('--')[0].strip().strip(',').replace('"','').replace('\'','') #uncomment, dequote
+        line = line.partition('--')[0].strip().strip(',').replace('"', '').replace('\'', '')  # uncomment, dequote
         if '=' in line:
             line = line.partition('=')
             modinfo[line[0].strip()] = line[2].strip()
     return modinfo
 
-if os.path.exists(os.path.join(datafolder,'games')):
-    gamespath = os.path.join(datafolder,'games')
-    for gamedir in os.listdir(gamespath):
-        if os.path.isdir(os.path.join(gamespath)):
-            gamepath = os.path.join(gamespath, gamedir)
-            modinfopath = os.path.join(gamepath,'modinfo.lua')
-            if os.path.exists(modinfopath):
-                modinfo = parsemodinfo(modinfopath)
-                modinfos[modinfo['name'] + " " + modinfo['version']] = modinfo
-for k, v in modinfos.items():
-    print (k,v)
+def parsemaps():
+    global maps
+    pass
+
+def refresh():
+    global modinfos
+    global enginepaths
+    global enginedirs
+    if os.path.exists(enginefolder) :
+        for file in os.listdir(enginefolder):
+            enginedir = os.path.join(enginefolder,file)
+            if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, 'spring.exe')):
+                enginepath = os.path.join(enginedir, 'spring.exe')
+                print ("Found engine in path:", enginepath)
+                enginepaths.append(enginepath)
+                enginedirs[enginepath] = file
+    enginepaths = sorted(enginepaths)
+    if len(enginepaths) == 0:
+        enginepaths.append("NO ENGINES FOUND!")
+    #check for bar.sdd
+    modinfos['Spring-launcher with BYAR Chobby $VERSION'] = {'modtype': '0', 'name':'BYAR Chobby $VERSION'}
+    modinfos['Spring-launcher with rapid://byar-chobby:test'] = {'modtype': '0', 'name':'rapid://byar-chobby:test'}
+    modinfos['rapid://byar-chobby:test'] = {'name' : 'rapid://byar-chobby:test', 'version' :'' , 'modtype' : '5'}
+    modinfos['rapid://byar:test'] = {'name' : 'rapid://byar:test', 'version' :'' , 'modtype' : '1'}
+    #assume rapid://byar-chobby:test
+    #assume rapid://byar:test
+
+
+
+    if os.path.exists(os.path.join(datafolder,'games')):
+        gamespath = os.path.join(datafolder,'games')
+        for gamedir in os.listdir(gamespath):
+            if os.path.isdir(os.path.join(gamespath)):
+                gamepath = os.path.join(gamespath, gamedir)
+                modinfopath = os.path.join(gamepath,'modinfo.lua')
+                if os.path.exists(modinfopath):
+                    modinfo = parsemodinfo(modinfopath)
+                    modinfos[modinfo['name'] + " " + modinfo['version']] = modinfo
+    for k, v in modinfos.items():
+        print (k,v)
+
+refresh()
 
 
 # Gather cmd args:
