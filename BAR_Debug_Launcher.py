@@ -32,8 +32,11 @@ def parsemaps():
 	mapdir = 'data\\maps'
 	if os.path.exists(mapdir):
 		for mapfile in os.listdir(mapdir):
-			if mapfile.lower().endswith('.sd7') and '.' not in mapfile[:-4] and ' ' not in mapfile:
+			if mapfile.lower().endswith('.sd7') and '.' not in mapfile[:-4] and ' ' not in mapfile and '-' not in mapfile:
+				mapfile = mapfile[:-4]
+				mapfile = '_'.join([x[0].upper()+x[1:] for x in mapfile.split('_')])
 				maps.append(mapfile)
+				print ('Found map', mapfile)
 
 				
 				
@@ -73,7 +76,8 @@ def refresh():
 					modinfos[modinfo['name'] + " " + modinfo['version']] = modinfo
 	for k, v in modinfos.items():
 		print (k,v)
-
+	
+	parsemaps()
 refresh()
 
 
@@ -88,7 +92,7 @@ root = tk.Tk()
 
 cmdtext = tk.Text(root, height = 7, font = ("Courier", 8))
 # config the root window
-root.geometry('500x300')
+root.geometry('500x400')
 root.resizable(False, False)
 root.title('BAR Debug Launcher')
 
@@ -179,7 +183,7 @@ def genscript(map,game):
 	scriptfile = open("bar_debug_launcher_script.txt",'w')
 	scriptfile.write(scripttxt)
 	scriptfile.close()
-	print('Generated script:",scripttxt)
+	print('Generated script:',scripttxt)
 
 def gencmd(event):
 	global runcmd
@@ -190,7 +194,7 @@ def gencmd(event):
 		runcmd = f'"{os.path.join(cwd,myengine)}"  --isolation --write-dir "{os.path.join(cwd, datafolder)}" --menu "{mygame}"'
 	elif modinfos[mygame]['modtype'] == '1':
 		if mymap != maps[0]:
-			genscript(mygame,mymap)
+			genscript(mymap,mygame)
 			runcmd = f'"{os.path.join(cwd,myengine)}"  --isolation --write-dir "{os.path.join(cwd, datafolder)}" bar_debug_launcher_script.txt'
 		else:
 			runcmd = f'"{os.path.join(cwd,myengine)}"  --isolation --write-dir "{os.path.join(cwd, datafolder)}"'
@@ -238,7 +242,7 @@ def startspring():
 	print ('starting spring with', runcmd)
 	subprocess.run(shlex.split(runcmd))
 
-tk.Button(root,text = "Start with the selected settings", command = startspring).pack()
+tk.Button(root,text = "Start with the selected settings", command = startspring).pack(side = tk.BOTTOM)
 
 gencmd(None) #init defaults
 root.mainloop()
