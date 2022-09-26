@@ -32,14 +32,12 @@ def parsemaps():
 	mapdir = 'data\\maps'
 	if os.path.exists(mapdir):
 		for mapfile in os.listdir(mapdir):
-			if mapfile.lower().endswith('.sd7') and '.' not in mapfile[:-4] and ' ' not in mapfile and '-' not in mapfile:
+			if mapfile.lower().endswith('.sd7') and '.' not in mapfile[:-4] and ' ' not in mapfile and '-' not in mapfile and '_' in mapfile:
 				mapfile = mapfile[:-4]
 				mapfile = '_'.join([x[0].upper()+x[1:] for x in mapfile.split('_')])
 				maps.append(mapfile)
 				print ('Found map', mapfile)
 
-				
-				
 def refresh():
 	global modinfos
 	global enginepaths
@@ -55,6 +53,7 @@ def refresh():
 	enginepaths = sorted(enginepaths)
 	if len(enginepaths) == 0:
 		enginepaths.append("NO ENGINES FOUND!")
+		enginedirs["NO ENGINES FOUND!"] = "NO ENGINES FOUND!"
 	#check for bar.sdd
 	modinfos['Spring-launcher with BYAR Chobby $VERSION'] = {'modtype': '0', 'name':'BYAR Chobby $VERSION'}
 	modinfos['Spring-launcher with rapid://byar-chobby:test'] = {'modtype': '0', 'name':'rapid://byar-chobby:test'}
@@ -62,8 +61,6 @@ def refresh():
 	modinfos['rapid://byar:test'] = {'name' : 'rapid://byar:test', 'version' :'' , 'modtype' : '1'}
 	#assume rapid://byar-chobby:test
 	#assume rapid://byar:test
-
-
 
 	if os.path.exists(os.path.join(datafolder,'games')):
 		gamespath = os.path.join(datafolder,'games')
@@ -89,6 +86,8 @@ refresh()
 # --write-dir C:\Users\Peti\AppData\Local\Programs\Beyond-All-Reason\data --isolation --menu BYAR Chobby $VERSION
 
 root = tk.Tk()
+
+ttk.Label(text="Place this next to Beyond-All-Reason.exe to scan for contents.\nhttps://github.com/beyond-all-reason/bar_debug_launcher by Beherith").pack(fill=tk.X, padx=5, pady=5)
 
 cmdtext = tk.Text(root, height = 7, font = ("Courier", 8))
 # config the root window
@@ -122,7 +121,7 @@ game_cb['state'] = 'readonly'
 # place the widget
 game_cb.pack(fill=tk.X, padx=5, pady=5)
 
-ttk.Label(text="Select a map if you want to test the game directly:").pack(fill=tk.X, padx=5, pady=5)
+ttk.Label(text="Select a map if you want to test the game directly. Not all maps will work.").pack(fill=tk.X, padx=5, pady=5)
 
 # create a combobox
 selected_map = tk.StringVar()
