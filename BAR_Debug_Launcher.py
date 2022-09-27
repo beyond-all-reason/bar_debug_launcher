@@ -101,7 +101,7 @@ ttk.Label(text="Select the engine version you want to use:").pack(fill=tk.X, pad
 
 # create a combobox
 selected_engine = tk.StringVar()
-engine_cb = ttk.Combobox(root, textvariable=selected_engine)
+engine_cb = ttk.Combobox(root, textvariable = selected_engine, height = min(len(enginepaths),50) )
 engine_cb['values'] = enginepaths
 engine_cb.set(enginepaths[0])
 # prevent typing a value
@@ -125,7 +125,7 @@ ttk.Label(text="Select a map if you want to test the game directly. Not all maps
 
 # create a combobox
 selected_map = tk.StringVar()
-map_cb = ttk.Combobox(root, textvariable=selected_map)
+map_cb = ttk.Combobox(root, textvariable=selected_map,  height = min(len(maps),50) )
 map_cb['values'] =  list(maps)
 map_cb.set(maps[0])
 # prevent typing a value
