@@ -1,4 +1,4 @@
-# bar_debug_launcher
+# Bar Debug Launcher
 A simple debug launcher for testing engines, lobbies and games
 
 
