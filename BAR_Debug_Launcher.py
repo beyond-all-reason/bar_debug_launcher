@@ -12,7 +12,7 @@ import shlex
 import sys
 import shutil
 import requests
-#import py7zr
+import py7zr
 
 from parse_demo_file import Parse_demo_file
 
@@ -21,8 +21,8 @@ barinstallpath = os.getcwd()
 
 #DEBUGGINGS
 #sys.argv.append("C:/Users/psarkozy/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
-barinstallpath = "C:/Users/psarkozy/AppData/Local/Programs/Beyond-All-Reason"
-os.chdir(barinstallpath)
+#barinstallpath = "C:/Users/psarkozy/AppData/Local/Programs/Beyond-All-Reason"
+#os.chdir(barinstallpath)
 
 modinfos = {}
 enginepaths = []
