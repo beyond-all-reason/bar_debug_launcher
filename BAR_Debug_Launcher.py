@@ -142,6 +142,8 @@ def try_start_replay(replayfilepath):
     if os.path.join(enginedir,'spring.exe') in enginepaths:
         print ("Found correct engine at", enginedir)
     else:
+        print ("Engine ",os.path.join(enginedir,'spring.exe') ,"not found in known engines")
+        print (str(enginepaths))
         print ("Attempting to download engine from github")
         baseurl = f'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
         archivename = f'spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
