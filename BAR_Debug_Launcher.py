@@ -17,13 +17,14 @@ import py7zr
 from parse_demo_file import Parse_demo_file
 
 #Try to figure out its own install path:
-
-barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0]))
-cwd = os.getcwd()
+barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) #
+chdir(barinstallpath)
 print("Exe path", barinstallpath, "cwd", cwd)
 
-os.system("pause")
-
+def exitpause(message == ""):
+    print("Terminating: ", message)
+    os.system("pause")
+    exit(1)
 
 #DEBUGGINGS
 #sys.argv.append("C:/Users/psarkozy/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
@@ -112,10 +113,10 @@ refresh()
 def try_start_replay(replayfilepath):
     if not replayfilepath.lower().endswith('.sdfz'):
         print ("Replay file path does not end with .sdfz", replayfilepath)
-        exit(1)
+        exitpause("")
     if not os.path.exists(replayfilepath):
         print ("Path to replay file incorrect", replayfilepath)
-        exit(1)
+        exitpause("")
     
     #1. Try to copy replay into demos folder
     #always assume that barpath is 
@@ -150,8 +151,7 @@ def try_start_replay(replayfilepath):
                 enginearchive.write(requests.get(baseurl).content)
         except:
             print ("Unable to download engine from", baseurl)
-            raise
-            #exit(1)     
+            exitpause("")  
 
         try:
             os.makedirs(os.path.join(barinstallpath,enginedir))
@@ -159,7 +159,7 @@ def try_start_replay(replayfilepath):
                 archive.extractall(path = os.path.join(barinstallpath,enginedir))
         except:
             print ("Failed to extract engine archive", archivename)
-            exit(1)
+            exitpause("")
 
     #4.1 Get game and map
 
@@ -176,7 +176,7 @@ def try_start_replay(replayfilepath):
             print("PRD success")
         else:
             print ("PRD failed")
-            exit(1)
+            exitpause("")
 
     #5. start the demo 
     runcmd = f'"{os.path.join(barinstallpath, enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
