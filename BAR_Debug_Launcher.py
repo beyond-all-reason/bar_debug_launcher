@@ -18,9 +18,11 @@ from parse_demo_file import Parse_demo_file
 
 #Try to figure out the BAR install path:
 barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) 
+cwd = os.getcwd()
 #This is needed for double-click launches, as then the CWD is wherever the demo file is
 os.chdir(barinstallpath)
 print("Exe path", barinstallpath, "cwd", cwd)
+print("Setting path to", barinstallpath)
 
 def exitpause(message = ""):
     print("Terminating: ", message)
