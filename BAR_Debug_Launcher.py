@@ -21,7 +21,7 @@ barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) #
 chdir(barinstallpath)
 print("Exe path", barinstallpath, "cwd", cwd)
 
-def exitpause(message == ""):
+def exitpause(message = ""):
     print("Terminating: ", message)
     os.system("pause")
     exit(1)
