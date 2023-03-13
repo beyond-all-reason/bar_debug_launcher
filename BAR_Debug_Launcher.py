@@ -16,8 +16,14 @@ import py7zr
 
 from parse_demo_file import Parse_demo_file
 
-# Grab all engine versions
-barinstallpath = os.getcwd()
+#Try to figure out its own install path:
+
+barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0]))
+cwd = os.getcwd()
+print("Exe path", barinstallpath, "cwd", cwd)
+
+os.system("pause")
+
 
 #DEBUGGINGS
 #sys.argv.append("C:/Users/psarkozy/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
