@@ -16,9 +16,10 @@ import py7zr
 
 from parse_demo_file import Parse_demo_file
 
-#Try to figure out its own install path:
-barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) #
-chdir(barinstallpath)
+#Try to figure out the BAR install path:
+barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) 
+#This is needed for double-click launches, as then the CWD is wherever the demo file is
+os.chdir(barinstallpath)
 print("Exe path", barinstallpath, "cwd", cwd)
 
 def exitpause(message = ""):
