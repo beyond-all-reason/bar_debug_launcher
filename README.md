@@ -13,3 +13,9 @@ A simple debug launcher for testing engines, lobbies and games, and for playing 
 
 
 ![kép](https://user-images.githubusercontent.com/109391/198118232-67bb8956-d976-4c88-9ade-da48e1a735e7.png)
+
+
+### Dev Notes:
+
+Exe is built without a console:
+pyinstaller --onefile --icon=bar-icon.ico --noconsole BAR_Debug_Launcher.py

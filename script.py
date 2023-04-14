@@ -95,9 +95,13 @@ class ScriptObject(object):
         kvs = re.findall("(?P<key>.*?)=(?P<value>.*?);", data.strip(), re.DOTALL)
         for key, value in kvs:
             setattr(self, key, try_make_numeric(value))
+        
 
         if self.req_keys and not any([hasattr(self, key) for key in self.req_keys]):
-            raise Exception("Missing required key in section '%s'." % section)
+            if 'spectator' in self.req_keys:
+                self.spectator = 0
+            else:
+                raise Exception("Missing required key in section '%s'." % section)
 
     def __repr__(self):
         return "{}({})".format(self.__class__.__name__, self.__dict__)
