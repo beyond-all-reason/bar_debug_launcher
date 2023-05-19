@@ -172,8 +172,8 @@ def try_start_replay(replayfilepath):
     my_env['PRD_RAPID_USE_STREAMER'] = 'false'
     my_env['PRD_RAPID_REPO_MASTER'] = 'https://repos-cdn.beyondallreason.dev/repos.gz'
 
-    prdmodcmd = f'{os.path.join(barinstallpath, "bin", "pr-downloader.exe")} --filesystem-writepath {os.path.join(barinstallpath, "data")} --download-game "{modname}"'
-    prdmapcmd = f'{os.path.join(barinstallpath, "bin", "pr-downloader.exe")} --filesystem-writepath {os.path.join(barinstallpath, "data")} --download-map "{mapname}"'
+    prdmodcmd = f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-game "{modname}"'
+    prdmapcmd = f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-map "{mapname}"'
     for prdcmd in [prdmodcmd, prdmapcmd]:
         print (prdcmd)
         prdsuccess = subprocess.call(prdcmd, shell= True, env = my_env)
