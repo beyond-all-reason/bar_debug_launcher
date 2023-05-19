@@ -40,7 +40,7 @@ enginedirs = {}
 datafolder = 'data'
 enginefolder = 'data\\engine'
 maps = ['Ill choose my own once ingame']
-
+archivecache = {} # maps gamename/mapname to filename
 
 def parsemodinfo(path):
     modinfo = {}
@@ -63,6 +63,26 @@ def parsemaps():
                 mapfile = '_'.join([x[0].upper() + x[1:] for x in mapfile.split('_')])
                 maps.append(mapfile)
                 print('Found map', mapfile)
+
+def parsecache(path):
+    global archivecache
+    for cachedir in os.listdir(path):
+        if os.path.isdir(os.path.join(path,cachedir)):
+            for archivecachefile in os.listdir(os.path.join(path,cachedir)):
+                if 'archivecache' in archivecachefile.lower() and archivecachefile.lower().endswith('.lua'):
+                    archivecachefilepath = os.path.join(path,cachedir, archivecachefile)
+                    print ("Loading Archive Cache File:", archivecachefilepath)
+                    if os.path.exists(archivecachefilepath):
+                        archivefile = None
+                        archivename = None
+                        for line in open(archivecachefilepath).readlines():
+                            if archivefile == None and line.startswith('\t\t\tname = '):
+                                archivefile = line.split('"')[1]
+                                archivename = None
+                            if archivename == None and line.startswith('\t\t\t\tname='):
+                                archivename = line.split('"')[1]
+                                print ("Found Archive", archivename, archivefile)
+                                archivecache[archivename] = archivefile
 
 
 def refresh():
@@ -102,7 +122,7 @@ def refresh():
         print(k, v)
 
     parsemaps()
-
+    parsecache(barinstallpath)
 
 refresh()
 
@@ -172,9 +192,17 @@ def try_start_replay(replayfilepath):
     my_env['PRD_RAPID_USE_STREAMER'] = 'false'
     my_env['PRD_RAPID_REPO_MASTER'] = 'https://repos-cdn.beyondallreason.dev/repos.gz'
 
-    prdmodcmd = f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-game "{modname}"'
-    prdmapcmd = f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-map "{mapname}"'
-    for prdcmd in [prdmodcmd, prdmapcmd]:
+    prdcmds = []
+    if modname not in archivecache:
+        prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-game "{modname}"')
+    else:
+        print ("Found", modname, "in archive cache")
+    if mapname not in archivecach:
+        prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-map "{mapname}"' )
+    else:
+        print ("Found", mapname, "in archive cache")
+
+    for prdcmd in prdcmds:
         print (prdcmd)
         prdsuccess = subprocess.call(prdcmd, shell= True, env = my_env)
         if prdsuccess==0:
