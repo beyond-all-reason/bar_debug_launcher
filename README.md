@@ -52,6 +52,10 @@ Same as testing and developing the BAR game, but you can can specify a list of m
 
 ![kép](https://user-images.githubusercontent.com/109391/198118232-67bb8956-d976-4c88-9ade-da48e1a735e7.png)
 
+## Debugging the Debug Launcher itself
+
+Use the BAR_Demo_Debug_Launcher_console.exe to get a console, open a ticket for any bug you may find. 
+
 ### Dev Notes:
 
 Exe is built without a console:
