@@ -66,23 +66,26 @@ def parsemaps():
 
 def parsecache(path):
     global archivecache
-    for cachedir in os.listdir(path):
-        if os.path.isdir(os.path.join(path,cachedir)):
-            for archivecachefile in os.listdir(os.path.join(path,cachedir)):
-                if 'archivecache' in archivecachefile.lower() and archivecachefile.lower().endswith('.lua'):
-                    archivecachefilepath = os.path.join(path,cachedir, archivecachefile)
-                    print ("Loading Archive Cache File:", archivecachefilepath)
-                    if os.path.exists(archivecachefilepath):
-                        archivefile = None
-                        archivename = None
-                        for line in open(archivecachefilepath).readlines():
-                            if archivefile == None and line.startswith('\t\t\tname = '):
-                                archivefile = line.split('"')[1]
-                                archivename = None
-                            if archivename == None and line.startswith('\t\t\t\tname='):
-                                archivename = line.split('"')[1]
-                                print ("Found Archive", archivename, archivefile)
-                                archivecache[archivename] = archivefile
+    try:
+        for cachedir in os.listdir(path):
+            if os.path.isdir(os.path.join(path,cachedir)):
+                for archivecachefile in os.listdir(os.path.join(path,cachedir)):
+                    if 'archivecache' in archivecachefile.lower() and archivecachefile.lower().endswith('.lua'):
+                        archivecachefilepath = os.path.join(path,cachedir, archivecachefile)
+                        print ("Loading Archive Cache File:", archivecachefilepath)
+                        if os.path.exists(archivecachefilepath):
+                            archivefile = None
+                            archivename = None
+                            for line in open(archivecachefilepath).readlines():
+                                if archivefile == None and line.startswith('\t\t\tname = '):
+                                    archivefile = line.split('"')[1]
+                                    archivename = None
+                                if archivename == None and line.startswith('\t\t\t\tname='):
+                                    archivename = line.split('"')[1]
+                                    print ("Found Archive", archivename, archivefile)
+                                    archivecache[archivename] = archivefile
+    except:
+        print ("parsecache error, dont code blind!")
 
 
 def refresh():
