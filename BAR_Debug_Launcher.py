@@ -12,9 +12,16 @@ import shlex
 import sys
 import shutil
 import requests
-import py7zr
+try:
+    import py7zr
+except ImportError:
+    print ("Cant find py7zr lib, no engine downloads available")
+    py7zr = None
+
 
 from parse_demo_file import Parse_demo_file
+
+from slpp import slpp
 
 #Try to figure out the BAR install path:
 barinstallpath = os.path.abspath(os.path.dirname(sys.argv[0])) 
@@ -30,88 +37,151 @@ def exitpause(message = ""):
     exit(1)
 
 #DEBUGGINGS
-#sys.argv.append("C:/Users/psarkozy/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
-#barinstallpath = "C:/Users/psarkozy/AppData/Local/Programs/Beyond-All-Reason"
-#os.chdir(barinstallpath)
+#sys.argv.append("C:/Users/peti/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
+barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
+os.chdir(barinstallpath)
 
-modinfos = {}
-enginepaths = []
-enginedirs = {}
-datafolder = 'data'
+#maps = ['Ill choose my own once ingame']
+
 enginefolder = 'data\\engine'
-maps = ['Ill choose my own once ingame']
+
 archivecache = {} # maps gamename/mapname to filename
+maps = {}
+games = {}
+menus = {}
+engines = {}
+modinfos = {}
 
-def parsemodinfo(path):
-    modinfo = {}
-    for line in open(path).readlines():
-        line = line.partition('--')[0].strip().strip(',').replace('"', '').replace('\'', '')  # uncomment, dequote
-        if '=' in line:
-            line = line.partition('=')
-            modinfo[line[0].strip()] = line[2].strip()
-    return modinfo
+scriptbase = """
+[game]
+{
+    [allyteam1]
+    {
+        numallies=0;
+    }
+    [team1]
+    {
+        teamleader=0;
+        allyteam=1;
+    }
+    [ai0]
+    {
+        shortname=NullAI;
+        name=NullAI;
+        version=0.1;
+        team=1;
+        host=0;
+    }
+    [modoptions]
+    {
+        %s
+    }
+    [allyteam0]
+    {
+        numallies=0;
+    }
+    [team0]
+    {
+        teamleader=0;
+        allyteam=0;
+    }
+    [player0]
+    {
+        team=0;
+        name=DebugLauncher;
+    }
+    mapname=%s;
+    myplayername=DebugLauncher;
+    ishost=1;
+    gametype=%s;
+    nohelperais=0;
+}"""
 
+# returns a dict of engineversion:absolutespringexepath
+def findengines(enginefolder):
+    engines = {}
+    enginedirs  = {}
+    if os.path.exists(enginefolder):
+        for engineversion in os.listdir(enginefolder):
+            enginedir = os.path.join(enginefolder, engineversion)
+            if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, 'spring.exe')):
+                enginepath = os.path.join(enginedir, 'spring.exe')
+                print(f"Found engine version {engineversion} in path: {enginepath}")
+                engines[engineversion] = enginepath
+    if len(engines) == 0:
+        engines["NO ENGINES FOUND!"] = "NO ENGINES FOUND!"
+    return engines,enginedirs
 
-def parsemaps():
-    global maps
-    mapdir = 'data\\maps'
-    if os.path.exists(mapdir):
-        for mapfile in os.listdir(mapdir):
-            if mapfile.lower().endswith('.sd7') and '.' not in mapfile[
-                                                               :-4] and ' ' not in mapfile and '-' not in mapfile and '_' in mapfile:
-                mapfile = mapfile[:-4]
-                mapfile = '_'.join([x[0].upper() + x[1:] for x in mapfile.split('_')])
-                maps.append(mapfile)
-                print('Found map', mapfile)
-
+# returns three dicts from archivecach
 def parsecache(path):
-    global archivecache
+    global archivecache           
+    maps = {} # key archive name to value filename
+    games = {}
+    menus = {}
     try:
+        cachefiles = []
         for cachedir in os.listdir(path):
             if os.path.isdir(os.path.join(path,cachedir)):
                 for archivecachefile in os.listdir(os.path.join(path,cachedir)):
                     if 'archivecache' in archivecachefile.lower() and archivecachefile.lower().endswith('.lua'):
                         archivecachefilepath = os.path.join(path,cachedir, archivecachefile)
-                        print ("Loading Archive Cache File:", archivecachefilepath)
-                        if os.path.exists(archivecachefilepath):
-                            archivefile = None
-                            archivename = None
-                            for line in open(archivecachefilepath).readlines():
-                                if archivefile == None and line.startswith('\t\t\tname = '):
-                                    archivefile = line.split('"')[1]
-                                    archivename = None
-                                if archivename == None and line.startswith('\t\t\t\tname='):
-                                    archivename = line.split('"')[1]
-                                    print ("Found Archive", archivename, archivefile)
-                                    archivecache[archivename] = archivefile
+                        lastmodified = os.path.getmtime(archivecachefilepath)
+                        print ("Found a cache file",cachedir,  archivecachefile, "last modified:", lastmodified)
+                        cachefiles.append((archivecachefilepath, lastmodified))
+
+        if len(cachefiles) > 0:
+            cachefiles = sorted(cachefiles, key = lambda x:[1], reverse = True)
+            archivecachefilepath = cachefiles[0][0]
+            print ("Loading Archive Cache File:", archivecachefilepath)
+            archivecachecontents = open(archivecachefilepath).read()
+            archivetable = '{' + archivecachecontents.partition('{')[2].rpartition('}')[0] +  '}'
+            archivetable = slpp.decode(archivetable)
+            for archive in archivetable['archives']:
+                if 'archivedata' in archive and 'modtype' in archive['archivedata']:
+                    archivedata = archive['archivedata']
+                    modtype = archivedata['modtype']
+                    if modtype == 3: # map
+                        maps[archivedata['name']] = archive['name']
+                    elif modtype == 5: #menu
+                        menus[archivedata['name']] = archive['name']
+                    elif modtype == 1: #game
+                        games[archivedata['name']] = archive['name']
+            print (f"Found {len(maps)} maps, {len(games)} games, {len(menus)} menus")
     except:
         print ("parsecache error, dont code blind!")
-
+    return maps, games, menus
 
 def refresh():
     global modinfos
-    global enginepaths
-    global enginedirs
-    if os.path.exists(enginefolder):
-        for file in os.listdir(enginefolder):
-            enginedir = os.path.join(enginefolder, file)
-            if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, 'spring.exe')):
-                enginepath = os.path.join(enginedir, 'spring.exe')
-                print("Found engine in path:", enginepath)
-                enginepaths.append(enginepath)
-                enginedirs[enginepath] = file
-    enginepaths = sorted(enginepaths)
-    if len(enginepaths) == 0:
-        enginepaths.append("NO ENGINES FOUND!")
-        enginedirs["NO ENGINES FOUND!"] = "NO ENGINES FOUND!"
+    #global enginepaths
+    #global enginedirs
+    global maps, games, menus, engines, enginedirs
+    maps, games, menus = parsecache(os.path.join(barinstallpath, "data", "cache" ))    
+    engines, enginedirs = findengines(os.path.join(barinstallpath, enginefolder))
+
+    #parsemaps()
     # check for bar.sdd
-    modinfos['Spring-launcher with BYAR Chobby $VERSION'] = {'modtype': '0', 'name': 'BYAR Chobby $VERSION'}
+    
     modinfos['Spring-launcher with rapid://byar-chobby:test'] = {'modtype': '0', 'name': 'rapid://byar-chobby:test'}
-    modinfos['rapid://byar-chobby:test'] = {'name': 'rapid://byar-chobby:test', 'version': '', 'modtype': '5'}
-    modinfos['rapid://byar:test'] = {'name': 'rapid://byar:test', 'version': '', 'modtype': '1'}
+    modinfos['Latest BYAR Chobby Lobby: rapid://byar-chobby:test'] = {'name': 'rapid://byar-chobby:test', 'version': '', 'modtype': '5'}
+    modinfos['Latest BAR Game: rapid://byar:test'] = {'name': 'rapid://byar:test', 'version': '', 'modtype': '1'}
+    for menuname in menus.keys():
+        if '$VERSION' in menuname:
+            modinfos[f'Spring-launcher with {menuname}'] = {'modtype': '0', 'name': menuname}
+            modinfos[f'{menuname} (no launcher)'] = {'modtype': '5', 'name': menuname}
+            break
+    for gamename in games.keys():
+        if '$VERSION' in gamename:
+            modinfos[gamename] = {'modtype': '1', 'name': gamename}
+
+    
     # assume rapid://byar-chobby:test
     # assume rapid://byar:test
 
+    #check menus for $VERSION's
+
+
+    '''
     if os.path.exists(os.path.join(datafolder, 'games')):
         gamespath = os.path.join(datafolder, 'games')
         for gamedir in os.listdir(gamespath):
@@ -123,9 +193,7 @@ def refresh():
                     modinfos[modinfo['name'] + " " + modinfo['version']] = modinfo
     for k, v in modinfos.items():
         print(k, v)
-
-    parsemaps()
-    parsecache(barinstallpath)
+    '''
 
 refresh()
 
@@ -164,12 +232,12 @@ def try_start_replay(replayfilepath):
     #3. Check engine version and download if needed, compare
     # 105.1.1-1354-g72b2d55 BAR105 to 105.1.1-941-g941148f bar
     enginebaseversion = engineversion.partition(' ')[0] 
-    enginedir = os.path.join('data','engine',enginebaseversion + ' bar')
-    if os.path.join(enginedir,'spring.exe') in enginepaths:
+    enginedir = os.path.join(enginebaseversion + ' bar')
+    if enginedir in engines:
         print ("Found correct engine at", enginedir)
     else:
         print ("Engine ",os.path.join(enginedir,'spring.exe') ,"not found in known engines")
-        print (str(enginepaths))
+        print (str(engines))
         print ("Attempting to download engine from github")
         baseurl = f'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
         archivename = f'spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
@@ -182,9 +250,10 @@ def try_start_replay(replayfilepath):
             exitpause("")  
 
         try:
-            os.makedirs(os.path.join(barinstallpath,enginedir))
+            newenginedir = os.path.join(barinstallpath,'data','engine',enginedir)
+            os.makedirs(newenginedir)
             with py7zr.SevenZipFile(archivename,'r') as archive:
-                archive.extractall(path = os.path.join(barinstallpath,enginedir))
+                archive.extractall(path = newenginedir)
         except:
             print ("Failed to extract engine archive", archivename)
             exitpause("")
@@ -196,17 +265,17 @@ def try_start_replay(replayfilepath):
     my_env['PRD_RAPID_REPO_MASTER'] = 'https://repos-cdn.beyondallreason.dev/repos.gz'
 
     prdcmds = []
-    if modname not in archivecache:
+    if modname not in games:
         prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-game "{modname}"')
     else:
-        print ("Found", modname, "in archive cache")
-    if mapname not in archivecach:
+        print (f"Found {modname} in archive cache")
+    if mapname not in maps:
         prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-map "{mapname}"' )
     else:
-        print ("Found", mapname, "in archive cache")
+        print (f"Found {mapname} in archive cache")
 
     for prdcmd in prdcmds:
-        print (prdcmd)
+        print (f"Running pr-downloader command: {prdcmd}")
         prdsuccess = subprocess.call(prdcmd, shell= True, env = my_env)
         if prdsuccess==0:
             print("PRD success")
@@ -215,7 +284,7 @@ def try_start_replay(replayfilepath):
             exitpause("")
 
     #5. start the demo 
-    runcmd = f'"{os.path.join(barinstallpath, enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
+    runcmd = f'"{os.path.join(barinstallpath, "data","engine",enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
     print (runcmd)
     subprocess.Popen(shlex.split(runcmd),close_fds=True )
     #print (demo.header)
@@ -247,9 +316,9 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
 
     # create a combobox
     selected_engine = tk.StringVar()
-    engine_cb = ttk.Combobox(root, textvariable=selected_engine, height=min(len(enginepaths), 50))
-    engine_cb['values'] = enginepaths
-    engine_cb.set(enginepaths[0])
+    engine_cb = ttk.Combobox(root, textvariable=selected_engine, height=min(len(engines), 40))
+    engine_cb['values'] = sorted(engines.keys())
+    engine_cb.set(sorted(engines.keys())[0])
     # prevent typing a value
     engine_cb['state'] = 'readonly'
     # place the widget
@@ -273,9 +342,9 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     # create a combobox
     selected_map = tk.StringVar()
     map_cb = ttk.Combobox(root, textvariable=selected_map, height=min(len(maps), 50))
-    map_cb['values'] = list(maps)
-    map_cb.set(maps[0])
-    # prevent typing a value
+    map_cb['values'] = ['Ill choose my own once ingame'] + sorted(maps.keys())
+    map_cb.set('Ill choose my own once ingame')
+            # prevent typing a value
     map_cb['state'] = 'readonly'
     # place the widget
     map_cb.pack(fill=tk.X, padx=5, pady=5)
@@ -286,50 +355,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     def genscript(map, game):
         modopts = modoptionstb.get('1.0',tk.END)
         print (modopts)
-        scripttxt = """[game]
-            {
-            [allyteam1]
-            {
-            numallies=0;
-            }
-            [team1]
-            {
-            teamleader=0;
-            allyteam=1;
-            }
-            [ai0]
-            {
-            shortname=NullAI;
-            name=Enemy;
-            version=0.1;
-            team=1;
-            host=0;
-            }
-            [modoptions]
-            {
-            maxspeed=20;
-            %s
-            }
-            [allyteam0]
-            {
-            numallies=0;
-            }
-            [team0]
-            {
-            teamleader=0;
-            allyteam=0;
-            }
-            [player0]
-            {
-            team=0;
-            name=UnnamedPlayer;
-            }
-            mapname=%s;
-            myplayername=UnnamedPlayer;
-            ishost=1;
-            gametype=%s;
-            nohelperais=0;
-            }""" % (modopts, map, game)
+        scripttxt =  scriptbase % (modopts, map, game)
         scriptfile = open("bar_debug_launcher_script.txt", 'w')
         scriptfile.write(scripttxt)
         scriptfile.close()
@@ -339,17 +365,18 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     def gencmd(event):
         global runcmd
         mygame = selected_game.get()
+        modinfo = modinfos[mygame]
         myengine = selected_engine.get()
         mymap = selected_map.get()
-        if modinfos[mygame]['modtype'] == '5':
-            runcmd = f'"{os.path.join(barinstallpath, myengine)}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" --menu "{mygame}"'
-        elif modinfos[mygame]['modtype'] == '1':
-            if mymap != maps[0]:
-                genscript(mymap, mygame)
-                runcmd = f'"{os.path.join(barinstallpath, myengine)}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" bar_debug_launcher_script.txt'
+        if modinfo['modtype'] == '5':
+            runcmd = f'"{engines[myengine]}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" --menu "{modinfo["name"]}"'
+        elif modinfo['modtype'] == '1':
+            if mymap != 'Ill choose my own once ingame':
+                genscript(mymap, modinfo["name"])
+                runcmd = f'"{engines[myengine]}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" bar_debug_launcher_script.txt'
             else:
-                runcmd = f'"{os.path.join(barinstallpath, myengine)}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}"'
-        elif modinfos[mygame]['modtype'] == '0':
+                runcmd = f'"{engines[myengine]}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}"'
+        elif modinfo['modtype'] == '0':
             configdev = "bar_debug_launcher_config.json"
             bar_debug_launcher_config_file = open(configdev, 'w')
             bar_debug_launcher_config_file.write(
@@ -372,7 +399,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
                             }
                         }
                     ]
-                }""" % (enginedirs[myengine], modinfos[mygame]['name']))
+                }""" % (myengine, modinfo['name'])) # engine needs "105.1.1-941-g941148f bar" format
             bar_debug_launcher_config_file.close()
 
             runcmd = f'"{os.path.join(barinstallpath, "Beyond-All-Reason.exe")}" -c "{os.path.join(barinstallpath, configdev)}"'
