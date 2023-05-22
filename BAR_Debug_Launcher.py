@@ -44,6 +44,7 @@ os.chdir(barinstallpath)
 #maps = ['Ill choose my own once ingame']
 
 enginefolder = 'data\\engine'
+datafolder = 'data'
 
 archivecache = {} # maps gamename/mapname to filename
 maps = {}
@@ -284,7 +285,7 @@ def try_start_replay(replayfilepath):
             exitpause("")
 
     #5. start the demo 
-    runcmd = f'"{os.path.join(barinstallpath, "data","engine",enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
+    runcmd = f'"{os.path.join(barinstallpath, "data","engine",enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, "data")}" "{savedreplaypath}"'
     print (runcmd)
     subprocess.Popen(shlex.split(runcmd),close_fds=True )
     #print (demo.header)
