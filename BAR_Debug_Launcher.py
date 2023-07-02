@@ -38,8 +38,8 @@ def exitpause(message = ""):
 
 #DEBUGGINGS
 #sys.argv.append("C:/Users/peti/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
-barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
-os.chdir(barinstallpath)
+#barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
+#os.chdir(barinstallpath)
 
 #maps = ['Ill choose my own once ingame']
 
