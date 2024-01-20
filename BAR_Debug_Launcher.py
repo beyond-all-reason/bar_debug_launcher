@@ -5,6 +5,7 @@ from tkinter.messagebox import showinfo
 #from ttkthemes import ThemedTk
 from calendar import month_name
 
+import platform
 import os
 import re
 import subprocess
@@ -33,7 +34,8 @@ print("Setting path to", barinstallpath)
 
 def exitpause(message = ""):
     print("Terminating: ", message)
-    os.system("pause")
+    if platform.system() == 'Windows':
+        os.system("pause")
     exit(1)
 
 #DEBUGGINGS
@@ -43,8 +45,46 @@ def exitpause(message = ""):
 
 #maps = ['Ill choose my own once ingame']
 
-enginefolder = 'data\\engine'
-datafolder = 'data'
+def find_linux_datadir():
+    # Searches for the BAR install directory in the ~same was as launcher
+    # and returns absolute path
+    try:
+        documents = subprocess.check_output(
+            ['xdg-user-dir', 'DOCUMENTS'], encoding='utf-8').strip()
+    except:
+        documents = os.path.expanduser("~")  # Yep, that's fallback
+    if os.path.exists(os.path.join(documents, 'Beyond All Reason')):
+        return os.path.join(documents, 'Beyond All Reason')
+
+    state_home = os.getenv('XDG_STATE_HOME',
+        default=os.path.join(os.path.expanduser("~"), '.local', 'state'))
+    return os.path.join(state_home, 'Beyond All Reason')
+
+def find_linux_launcher_binary():
+    # Searches for the newest AppImage file in the current directory
+    for file in reversed(sorted(os.listdir())):
+        if re.match(r'^Beyond-All-Reason.*\.AppImage$', file):
+            return file
+    return 'Beyond-All-Reason.AppImage'  # Just something to return...
+
+if platform.system() == 'Windows':
+    engine_binary = 'spring.exe'
+    prd_binary = 'pr-downloader.exe'
+    datafolder = 'data'
+    launcher_binary_display = launcher_binary = 'Beyond-All-Reason.exe'
+    engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
+elif platform.system() == 'Linux':
+    engine_binary = 'spring'
+    prd_binary = 'pr-downloader'
+    # Later we depend on that os.join(barinstallpath, datafolder) returns
+    # datafolder when datafolder is absolute path.
+    datafolder = find_linux_datadir()
+    launcher_binary = find_linux_launcher_binary()
+    launcher_binary_display= "Beyond-All-Reason AppImage"
+    engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_linux-64-minimal-portable.7z'
+else:
+    raise Exception('Unsupported platform')
+
 
 archivecache = {} # maps gamename/mapname to filename
 maps = {}
@@ -105,8 +145,8 @@ def findengines(enginefolder):
     if os.path.exists(enginefolder):
         for engineversion in os.listdir(enginefolder):
             enginedir = os.path.join(enginefolder, engineversion)
-            if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, 'spring.exe')):
-                enginepath = os.path.join(enginedir, 'spring.exe')
+            if os.path.isdir(enginedir) and os.path.exists(os.path.join(enginedir, engine_binary)):
+                enginepath = os.path.join(enginedir, engine_binary)
                 print(f"Found engine version {engineversion} in path: {enginepath}")
                 engines[engineversion] = enginepath
     if len(engines) == 0:
@@ -157,8 +197,8 @@ def refresh():
     #global enginepaths
     #global enginedirs
     global maps, games, menus, engines, enginedirs
-    maps, games, menus = parsecache(os.path.join(barinstallpath, "data", "cache" ))    
-    engines, enginedirs = findengines(os.path.join(barinstallpath, enginefolder))
+    maps, games, menus = parsecache(os.path.join(barinstallpath, datafolder, "cache"))
+    engines, enginedirs = findengines(os.path.join(barinstallpath, datafolder, "engine"))
 
     #parsemaps()
     # check for bar.sdd
@@ -216,7 +256,7 @@ def try_start_replay(replayfilepath):
     #1. Try to copy replay into demos folder
     #always assume that barpath is 
     replayfiledir, replayfilename = os.path.split(replayfilepath)
-    savedreplaypath = os.path.join(barinstallpath,'data','demos', replayfilename)
+    savedreplaypath = os.path.join(barinstallpath, datafolder,'demos', replayfilename)
     print (replayfilepath,savedreplaypath)
     if not os.path.exists(savedreplaypath):
         shutil.copy2(replayfilepath,savedreplaypath)
@@ -237,26 +277,26 @@ def try_start_replay(replayfilepath):
     if enginedir in engines:
         print ("Found correct engine at", enginedir)
     else:
-        print ("Engine ",os.path.join(enginedir,'spring.exe') ,"not found in known engines")
+        print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
         print (str(engines))
         print ("Attempting to download engine from github")
-        baseurl = f'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
-        archivename = f'spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
+        baseurl = engine_download_baseurl.format(enginebaseversion=enginebaseversion)
+        archivename = f'engine.{enginebaseversion}.7z'
         print(baseurl)
         try:
             with open(archivename,'wb') as enginearchive:
                 enginearchive.write(requests.get(baseurl).content)
-        except:
-            print ("Unable to download engine from", baseurl)
+        except Exception as e:
+            print ("Unable to download engine from", baseurl, e)
             exitpause("")  
 
         try:
-            newenginedir = os.path.join(barinstallpath,'data','engine',enginedir)
+            newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
             os.makedirs(newenginedir)
             with py7zr.SevenZipFile(archivename,'r') as archive:
                 archive.extractall(path = newenginedir)
-        except:
-            print ("Failed to extract engine archive", archivename)
+        except Exception as e:
+            print ("Failed to extract engine archive", archivename, e)
             exitpause("")
 
     #4.1 Get game and map
@@ -267,11 +307,11 @@ def try_start_replay(replayfilepath):
 
     prdcmds = []
     if modname not in games:
-        prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-game "{modname}"')
+        prdcmds.append( f'"{os.path.join(barinstallpath, datafolder, "engine", enginedir, prd_binary)}" --filesystem-writepath "{os.path.join(barinstallpath, datafolder)}" --download-game "{modname}"')
     else:
         print (f"Found {modname} in archive cache")
     if mapname not in maps:
-        prdcmds.append( f'"{os.path.join(barinstallpath, "bin", "pr-downloader.exe")}" --filesystem-writepath "{os.path.join(barinstallpath, "data")}" --download-map "{mapname}"' )
+        prdcmds.append( f'"{os.path.join(barinstallpath, datafolder, "engine", enginedir, prd_binary)}" --filesystem-writepath "{os.path.join(barinstallpath, datafolder)}" --download-map "{mapname}"' )
     else:
         print (f"Found {mapname} in archive cache")
 
@@ -285,7 +325,7 @@ def try_start_replay(replayfilepath):
             exitpause("")
 
     #5. start the demo 
-    runcmd = f'"{os.path.join(barinstallpath, "data","engine",enginedir,"spring.exe")}"  --isolation --write-dir "{os.path.join(barinstallpath, "data")}" "{savedreplaypath}"'
+    runcmd = f'"{os.path.join(barinstallpath, datafolder,"engine",enginedir, engine_binary)}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
     print (runcmd)
     subprocess.Popen(shlex.split(runcmd),close_fds=True )
     #print (demo.header)
@@ -295,7 +335,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     root = tk.Tk()
     #root = ThemedTk(theme='black')
     ttk.Label(
-        text="Place this next to Beyond-All-Reason.exe to scan for contents.\nhttps://github.com/beyond-all-reason/bar_debug_launcher by Beherith").pack(
+        text=f"Place this next to {launcher_binary_display} to scan for contents.\nhttps://github.com/beyond-all-reason/bar_debug_launcher by Beherith").pack(
         fill=tk.X, padx=5, pady=5)
 
 
@@ -304,7 +344,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     cmdtext = tk.Text(root, height=7, font=("Courier", 8))
     # config the root window
     root.geometry('500x550')
-    root.resizable(False, False)
+    root.resizable(True, True)
     root.title('BAR Replay and Debug Launcher')
 
     #root.config(bg="#26242f")  
@@ -403,7 +443,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
                 }""" % (myengine, modinfo['name'])) # engine needs "105.1.1-941-g941148f bar" format
             bar_debug_launcher_config_file.close()
 
-            runcmd = f'"{os.path.join(barinstallpath, "Beyond-All-Reason.exe")}" -c "{os.path.join(barinstallpath, configdev)}"'
+            runcmd = f'"{os.path.join(barinstallpath, launcher_binary)}" -c "{os.path.join(barinstallpath, configdev)}"'
 
         print(runcmd)
         cmdtext.delete('1.0', tk.END)
@@ -422,7 +462,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     def startreplay():
         filetypes = [('BAR Replay Files', '*.sdfz'),
                     ('All files', '*.*')]
-        filename = filedialog.askopenfilename(title = 'Select a replay to watch', initialdir = os.path.join(barinstallpath, 'data','demos'), filetypes = filetypes)
+        filename = filedialog.askopenfilename(title = 'Select a replay to watch', initialdir = os.path.join(barinstallpath, datafolder, 'demos'), filetypes = filetypes)
         print (filename)
         if filename:
             try_start_replay(filename)
