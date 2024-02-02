@@ -1,8 +1,13 @@
 # Bar Replay and Debug Launcher
 A simple debug launcher for testing engines, lobbies and games, and for playing replays. 
 
-## Installation
+## Installation Windows
 Copy the `bar_demo_debug_launcher.exe` and `bar-icon.ico` from this repository next to wherever your Beyond-All-Reason.exe is
+
+## Installation Linux
+Copy all .py files to the `Beyond All Reason/data` folder 
+`pip install -r requirements.txt`
+`sudo apt install python3-tk`
 
 ## Associating replays to auto-start on double click
 
