@@ -45,6 +45,13 @@ Note that you wont have automatic downloads of game updates and maps in this mod
 
 Same as testing and developing the BAR game, but you can can specify a list of modoptions in the Additinoal modoptions field. 
 
+## Testing different engines
+All engines should go into bar/data/engine/  
+
+Each into their own subfolder
+
+They will then appear in the engine selector dropdown in the BAR debug launcher
+
 ## Attaching debuggers and development tools like VSCode
 
 1. Select all the options you want
