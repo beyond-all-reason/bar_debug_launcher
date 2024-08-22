@@ -359,7 +359,7 @@ if len(sys.argv) < 2: # no arguments passed, use GUI
     selected_engine = tk.StringVar()
     engine_cb = ttk.Combobox(root, textvariable=selected_engine, height=min(len(engines), 40))
     engine_cb['values'] = sorted(engines.keys())
-    engine_cb.set(sorted(engines.keys())[0])
+    engine_cb.set(sorted(engines.keys())[-1])
     # prevent typing a value
     engine_cb['state'] = 'readonly'
     # place the widget
