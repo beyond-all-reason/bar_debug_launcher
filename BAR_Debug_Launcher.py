@@ -73,6 +73,7 @@ if platform.system() == 'Windows':
     datafolder = 'data'
     launcher_binary_display = launcher_binary = 'Beyond-All-Reason.exe'
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
+    engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_windows-64-minimal-portable.7z'
 elif platform.system() == 'Linux':
     engine_binary = 'spring'
     prd_binary = 'pr-downloader'
@@ -82,6 +83,7 @@ elif platform.system() == 'Linux':
     launcher_binary = find_linux_launcher_binary()
     launcher_binary_display= "Beyond-All-Reason AppImage"
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_linux-64-minimal-portable.7z'
+    engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_linux-64-minimal-portable.7z'
 else:
     raise Exception('Unsupported platform')
 
@@ -188,8 +190,8 @@ def parsecache(path):
                     elif modtype == 1: #game
                         games[archivedata['name']] = archive['name']
             print (f"Found {len(maps)} maps, {len(games)} games, {len(menus)} menus")
-    except:
-        print ("parsecache error, dont code blind!")
+    except Exception as e:
+        print ("parsecache error, dont code blind!", e)
     return maps, games, menus
 
 def refresh():
@@ -271,33 +273,65 @@ def try_start_replay(replayfilepath):
     print ("Replay info:", engineversion, mapname, modname)
 
     #3. Check engine version and download if needed, compare
-    # 105.1.1-1354-g72b2d55 BAR105 to 105.1.1-941-g941148f bar
-    enginebaseversion = engineversion.partition(' ')[0] 
-    enginedir = os.path.join(enginebaseversion + ' bar')
-    if enginedir in engines:
-        print ("Found correct engine at", enginedir)
-    else:
-        print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
-        print (str(engines))
-        print ("Attempting to download engine from github")
-        baseurl = engine_download_baseurl.format(enginebaseversion=enginebaseversion)
-        archivename = f'engine.{enginebaseversion}.7z'
-        print(baseurl)
-        try:
-            with open(archivename,'wb') as enginearchive:
-                enginearchive.write(requests.get(baseurl).content)
-        except Exception as e:
-            print ("Unable to download engine from", baseurl, e)
-            exitpause("")  
+    if engineversion.startswith('2') and engineversion.count('.') == 2: 
+        print("New engine version format found")
+        subversions = engineversion.split('.') # e.g. 2025.01.3
+        releaseID = f'rel{subversions[0]}{subversions[1]}'
+        enginedir = f'{releaseID}.{engineversion}' # e.g. rel2501.2025.01.3
 
-        try:
-            newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
-            os.makedirs(newenginedir)
-            with py7zr.SevenZipFile(archivename,'r') as archive:
-                archive.extractall(path = newenginedir)
-        except Exception as e:
-            print ("Failed to extract engine archive", archivename, e)
-            exitpause("")
+        if enginedir in engines:
+            print ("Found correct engine at", enginedir)
+        else:
+            print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
+            print (str(engines))
+            print ("Attempting to download engine from github")
+            baseurl = engine_download_baseurl_new.format(releaseID=releaseID, enginebaseversion = engineversion)
+            archivename = f'engine.{enginebaseversion}.7z'
+            print(baseurl)
+            try:
+                with open(archivename,'wb') as enginearchive:
+                    enginearchive.write(requests.get(baseurl).content)
+            except Exception as e:
+                print ("Unable to download engine from", baseurl, e)
+                exitpause("")  
+
+            try:
+                newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
+                os.makedirs(newenginedir)
+                with py7zr.SevenZipFile(archivename,'r') as archive:
+                    archive.extractall(path = newenginedir)
+            except Exception as e:
+                print ("Failed to extract engine archive", archivename, e)
+                exitpause("")
+    else:
+        
+        # 105.1.1-1354-g72b2d55 BAR105 to 105.1.1-941-g941148f bar
+        enginebaseversion = engineversion.partition(' ')[0] 
+        enginedir = os.path.join(enginebaseversion + ' bar')
+        if enginedir in engines:
+            print ("Found correct engine at", enginedir)
+        else:
+            print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
+            print (str(engines))
+            print ("Attempting to download engine from github")
+            baseurl = engine_download_baseurl.format(enginebaseversion=enginebaseversion)
+            archivename = f'engine.{enginebaseversion}.7z'
+            print(baseurl)
+            try:
+                with open(archivename,'wb') as enginearchive:
+                    enginearchive.write(requests.get(baseurl).content)
+            except Exception as e:
+                print ("Unable to download engine from", baseurl, e)
+                exitpause("")  
+
+            try:
+                newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
+                os.makedirs(newenginedir)
+                with py7zr.SevenZipFile(archivename,'r') as archive:
+                    archive.extractall(path = newenginedir)
+            except Exception as e:
+                print ("Failed to extract engine archive", archivename, e)
+                exitpause("")
 
     #4.1 Get game and map
 
