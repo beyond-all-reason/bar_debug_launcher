@@ -286,7 +286,7 @@ def try_start_replay(replayfilepath):
             print (str(engines))
             print ("Attempting to download engine from github")
             baseurl = engine_download_baseurl_new.format(releaseID=releaseID, enginebaseversion = engineversion)
-            archivename = f'engine.{enginebaseversion}.7z'
+            archivename = f'engine.{engineversion}.7z'
             print(baseurl)
             try:
                 with open(archivename,'wb') as enginearchive:
