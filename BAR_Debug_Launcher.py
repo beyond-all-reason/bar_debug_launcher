@@ -276,7 +276,7 @@ def try_start_replay(replayfilepath):
     if engineversion.startswith('2') and engineversion.count('.') == 2: 
         print("New engine version format found")
         subversions = engineversion.split('.') # e.g. 2025.01.3
-        releaseID = f'rel{subversions[0]}{subversions[1]}'
+        releaseID = f'rel{subversions[0][2:]}{subversions[1]}'
         enginedir = f'{releaseID}.{engineversion}' # e.g. rel2501.2025.01.3
 
         if enginedir in engines:
