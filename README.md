@@ -4,6 +4,8 @@ A simple debug launcher for testing engines, lobbies and games, and for playing 
 ## Installation
 Get it from the releases page: https://github.com/beyond-all-reason/bar_debug_launcher/releases
 
+And place it next to wherever your `Beyond-All-Reason.exe` is
+
 ## Associating replays to auto-start on double click
 
 Right click any replay in your BAR/data/demos folder, and and set the "Open With" to "bar_demo_debug_launcher.exe". You can now double-click any replay and it should download all that is needed and start the replay!.
