@@ -339,6 +339,11 @@ def try_start_replay(replayfilepath):
     my_env['PRD_RAPID_USE_STREAMER'] = 'false'
     my_env['PRD_RAPID_REPO_MASTER'] = 'https://repos-cdn.beyondallreason.dev/repos.gz'
 
+    #print the entire env:
+    print('Environment:')
+    for k,v in my_env.items():
+        print (k,v)
+
     prdcmds = []
     if modname not in games:
         prdcmds.append( f'"{os.path.join(barinstallpath, datafolder, "engine", enginedir, prd_binary)}" --filesystem-writepath "{os.path.join(barinstallpath, datafolder)}" --download-game "{modname}"')
