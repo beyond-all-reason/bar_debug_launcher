@@ -338,9 +338,9 @@ def try_start_replay(replayfilepath):
     my_env = os.environ.copy()
     my_env['PRD_RAPID_USE_STREAMER'] = 'false'
     my_env['PRD_RAPID_REPO_MASTER'] = 'https://repos-cdn.beyondallreason.dev/repos.gz'
+    my_env['PRD_HTTP_SEARCH_URL'] = 'https://files-cdn.beyondallreason.dev/find'
 
-    #print the entire env:
-    print('Environment:')
+    print("Environment:")
     for k,v in my_env.items():
         print (k,v)
 
