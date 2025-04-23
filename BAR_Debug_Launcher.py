@@ -39,9 +39,9 @@ def exitpause(message = ""):
     exit(1)
 
 #DEBUGGINGS
-#sys.argv.append("C:/Users/peti/Downloads/20230112_123955_Archsimkats_Valley_V1_105.1.1-1354-g72b2d55 BAR105.sdfz")
-#barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
-#os.chdir(barinstallpath)
+sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
+barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
+os.chdir(barinstallpath)
 
 #maps = ['Ill choose my own once ingame']
 
@@ -74,6 +74,7 @@ if platform.system() == 'Windows':
     launcher_binary_display = launcher_binary = 'Beyond-All-Reason.exe'
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
     engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_windows-64-minimal-portable.7z'
+    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{engienbaseversion}/recoil_{enginebaseversion}_amd64-windows.7z'
 elif platform.system() == 'Linux':
     engine_binary = 'spring'
     prd_binary = 'pr-downloader'
@@ -84,6 +85,7 @@ elif platform.system() == 'Linux':
     launcher_binary_display= "Beyond-All-Reason AppImage"
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_linux-64-minimal-portable.7z'
     engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_linux-64-minimal-portable.7z'
+    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{engienbaseversion}/recoil_{enginebaseversion}_amd64-linux.7z'
 else:
     raise Exception('Unsupported platform')
 
@@ -274,7 +276,7 @@ def try_start_replay(replayfilepath):
 
     #3. Check engine version and download if needed, compare
     if engineversion.startswith('2') and engineversion.count('.') == 2: 
-        print("New engine version format found")
+        print("New engine version format found", engineversion)
         subversions = engineversion.split('.') # e.g. 2025.01.3
         releaseID = f'rel{subversions[0][2:]}{subversions[1]}'
         enginedir = f'{releaseID}.{engineversion}' # e.g. rel2501.2025.01.3
@@ -293,15 +295,37 @@ def try_start_replay(replayfilepath):
                     enginearchive.write(requests.get(baseurl).content)
             except Exception as e:
                 print ("Unable to download engine from", baseurl, e)
-                exitpause("")  
+                baseurl = engine_download_baseurl_newest.format( enginebaseversion = engineversion)
+                try: 
+                    with open(archivename,'wb') as enginearchive:
+                        enginearchive.write(requests.get(baseurl).content)
+                    
+                    enginedir = f'recoil_{engineversion}' # e.g. rel2501.2025.01.3
+                except Exception as e:
+                    print ("Unable to download engine from", baseurl, e)
+                    exitpause("")
 
             try:
                 newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
-                os.makedirs(newenginedir)
-                with py7zr.SevenZipFile(archivename,'r') as archive:
-                    archive.extractall(path = newenginedir)
+                if not os.path.exists(newenginedir):
+                    os.makedirs(newenginedir)
+                if platform.system() == 'Windows':
+                    if os.path.exists("C:\\Program Files\\7-Zip\\7z.exe"):
+                        un7zipcmd = "\"C:\\Program Files\\7-Zip\\7z.exe\" x -y -o" + newenginedir + " " + archivename
+                        print(un7zipcmd)
+                        retval = os.system(un7zipcmd)
+                        if retval != 0:
+                            print ("ERROR: 7z.exe failed to extract engine archive", archivename, "with return code", retval, "using command", un7zipcmd)
+                            exitpause("")
+                    else:
+                        print("ERROR: 7z.exe not found, please install 7zip to C:\\Program Files\\7-Zip\\7z.exe")
+                        exitpause("")
+                else:
+                    with py7zr.SevenZipFile(archivename,'r') as archive:
+                        archive.extractall(path = newenginedir)
             except Exception as e:
                 print ("Failed to extract engine archive", archivename, e)
+                raise e
                 exitpause("")
     else:
         
@@ -326,7 +350,8 @@ def try_start_replay(replayfilepath):
 
             try:
                 newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
-                os.makedirs(newenginedir)
+                if not os.path.exists(newenginedir):
+                    os.makedirs(newenginedir)
                 with py7zr.SevenZipFile(archivename,'r') as archive:
                     archive.extractall(path = newenginedir)
             except Exception as e:
