@@ -39,7 +39,11 @@ def exitpause(message = ""):
     exit(1)
 
 #DEBUGGINGS
+
 #sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
+#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-15_17-01-59-622_DWorld_V4_2025.01.6.sdfz")
+#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-16_07-46-16-355_All That Glitters v2_2025.03.9.sdfz")
+#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-26_20-49-19-461_All That Glitters v2_2025.04.01.sdfz")
 #barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
 #os.chdir(barinstallpath)
 
@@ -74,7 +78,7 @@ if platform.system() == 'Windows':
     launcher_binary_display = launcher_binary = 'Beyond-All-Reason.exe'
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_windows-64-minimal-portable.7z'
     engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_windows-64-minimal-portable.7z'
-    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{engienbaseversion}/recoil_{enginebaseversion}_amd64-windows.7z'
+    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{enginebaseversion}/recoil_{enginebaseversion}_amd64-windows.7z'
 elif platform.system() == 'Linux':
     engine_binary = 'spring'
     prd_binary = 'pr-downloader'
@@ -85,7 +89,7 @@ elif platform.system() == 'Linux':
     launcher_binary_display= "Beyond-All-Reason AppImage"
     engine_download_baseurl = 'https://github.com/beyond-all-reason/spring/releases/download/spring_bar_%7BBAR105%7D{enginebaseversion}/spring_bar_.BAR105.{enginebaseversion}_linux-64-minimal-portable.7z'
     engine_download_baseurl_new = 'https://github.com/beyond-all-reason/spring/releases/download/{enginebaseversion}/spring_bar_.{releaseID}.{enginebaseversion}_linux-64-minimal-portable.7z'
-    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{engienbaseversion}/recoil_{enginebaseversion}_amd64-linux.7z'
+    engine_download_baseurl_newest = 'https://github.com/beyond-all-reason/RecoilEngine/releases/download/{enginebaseversion}/recoil_{enginebaseversion}_amd64-linux.7z'
 else:
     raise Exception('Unsupported platform')
 
@@ -272,7 +276,7 @@ def try_start_replay(replayfilepath):
     engineversion = demo.header['versionString'] # 105.1.1-1354-g72b2d55 BAR105
     mapname = demo.script.other['mapname'] # Archsimkats_Valley_V1
     modname = demo.script.other['modname'] # Beyond All Reason test-21960-4e943b5
-    print ("Replay info:", engineversion, mapname, modname)
+    print (f"Replay info: Engine={engineversion}, Map={mapname}, Game={modname}")
 
     #3. Check engine version and download if needed, compare
     if engineversion.startswith('2') and engineversion.count('.') == 2: 
@@ -285,25 +289,26 @@ def try_start_replay(replayfilepath):
             print ("Found correct engine at", enginedir)
         else:
             print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
-            print (str(engines))
+
+            #print (str(engines))
             print ("Attempting to download engine from github")
-            baseurl = engine_download_baseurl_new.format(releaseID=releaseID, enginebaseversion = engineversion)
-            archivename = f'engine.{engineversion}.7z'
-            print(baseurl)
+            if engineversion.startswith('2025.01'):
+
+                baseurl = engine_download_baseurl_new.format(releaseID=releaseID, enginebaseversion = engineversion)
+                archivename = f'engine.{engineversion}.7z'
+                print(baseurl)
+            else:
+                baseurl = engine_download_baseurl_newest.format( enginebaseversion = engineversion)
+                archivename = baseurl.split('/')[-1]
+                enginedir = f'recoil_{engineversion}' # e.g. rel2501.2025.01.3
             try:
-                with open(archivename,'wb') as enginearchive:
+                print("Downloading engine from", baseurl)
+                print("Saving as", archivename)
+                with open(archivename,'wb') as enginearchive: # yeah this doesnt 404
                     enginearchive.write(requests.get(baseurl).content)
             except Exception as e:
                 print ("Unable to download engine from", baseurl, e)
-                baseurl = engine_download_baseurl_newest.format( enginebaseversion = engineversion)
-                try: 
-                    with open(archivename,'wb') as enginearchive:
-                        enginearchive.write(requests.get(baseurl).content)
-                    
-                    enginedir = f'recoil_{engineversion}' # e.g. rel2501.2025.01.3
-                except Exception as e:
-                    print ("Unable to download engine from", baseurl, e)
-                    exitpause("")
+                exitpause("")
 
             try:
                 newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
@@ -390,7 +395,7 @@ def try_start_replay(replayfilepath):
 
     #5. start the demo 
     runcmd = f'"{os.path.join(barinstallpath, datafolder,"engine",enginedir, engine_binary)}"  --isolation --write-dir "{os.path.join(barinstallpath, datafolder)}" "{savedreplaypath}"'
-    print (runcmd)
+    print ("Launching engine for replay with:", runcmd)
     subprocess.Popen(shlex.split(runcmd),close_fds=True )
     #print (demo.header)
 
