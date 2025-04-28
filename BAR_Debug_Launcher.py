@@ -39,9 +39,9 @@ def exitpause(message = ""):
     exit(1)
 
 #DEBUGGINGS
-sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
-barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
-os.chdir(barinstallpath)
+#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
+#barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
+#os.chdir(barinstallpath)
 
 #maps = ['Ill choose my own once ingame']
 
