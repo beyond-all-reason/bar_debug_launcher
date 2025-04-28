@@ -2,6 +2,8 @@
 A simple debug launcher for testing engines, lobbies and games, and for playing replays. 
 
 ## Installation
+Make sure you have 7zip installed into your program files at `C:\Program Files\7-Zip\7z.exe`
+
 Get it from the releases page: https://github.com/beyond-all-reason/bar_debug_launcher/releases
 
 And place it next to wherever your `Beyond-All-Reason.exe` is
