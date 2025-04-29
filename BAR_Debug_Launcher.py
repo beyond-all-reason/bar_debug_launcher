@@ -39,13 +39,13 @@ def exitpause(message = ""):
     exit(1)
 
 #DEBUGGINGS
-
-#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
-#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-15_17-01-59-622_DWorld_V4_2025.01.6.sdfz")
-#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-16_07-46-16-355_All That Glitters v2_2025.03.9.sdfz")
-#sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-26_20-49-19-461_All That Glitters v2_2025.04.01.sdfz")
-#barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
-#os.chdir(barinstallpath)
+if False:
+    #sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-01-18_17-59-17-091_Supreme Isthmus Winter v1.8_2025.01.3.sdfz")
+    #sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-15_17-01-59-622_DWorld_V4_2025.01.6.sdfz")
+    sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-16_07-46-16-355_All That Glitters v2_2025.03.9.sdfz")
+    #sys.argv.append("C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason/2025-04-26_20-49-19-461_All That Glitters v2_2025.04.01.sdfz")
+    barinstallpath = "C:/Users/Peti/AppData/Local/Programs/Beyond-All-Reason"
+    os.chdir(barinstallpath)
 
 #maps = ['Ill choose my own once ingame']
 
@@ -285,8 +285,16 @@ def try_start_replay(replayfilepath):
         releaseID = f'rel{subversions[0][2:]}{subversions[1]}'
         enginedir = f'{releaseID}.{engineversion}' # e.g. rel2501.2025.01.3
 
-        if enginedir in engines:
-            print ("Found correct engine at", enginedir)
+        if enginedir in engines or any(engineversion in x for x in engines.keys()):
+            if enginedir in engines:
+                print ("Found exact correct engine at", enginedir)
+            else:
+                # try to find the engine version in the engines dict
+                for engineversionkey in engines.keys():
+                    if engineversion in engineversionkey:
+                        enginedir = engineversionkey
+                        break
+                print ("Found hopefully correct engine at", enginedir)
         else:
             print ("Engine ",os.path.join(enginedir,engine_binary) ,"not found in known engines")
 
@@ -315,15 +323,17 @@ def try_start_replay(replayfilepath):
                 if not os.path.exists(newenginedir):
                     os.makedirs(newenginedir)
                 if platform.system() == 'Windows':
-                    if os.path.exists("C:\\Program Files\\7-Zip\\7z.exe"):
-                        un7zipcmd = "\"C:\\Program Files\\7-Zip\\7z.exe\" x -y -o" + newenginedir + " " + archivename
+                    programfiles = os.environ.get('PROGRAMFILES', 'C:\\Program Files')
+                    programfiles = os.path.join(programfiles, '7-Zip', "7z.exe")
+                    if os.path.exists(programfiles):
+                        un7zipcmd = f'"{programfiles}" x -y -o{newenginedir} {archivename}'
                         print(un7zipcmd)
                         retval = os.system(un7zipcmd)
                         if retval != 0:
                             print ("ERROR: 7z.exe failed to extract engine archive", archivename, "with return code", retval, "using command", un7zipcmd)
                             exitpause("")
                     else:
-                        print("ERROR: 7z.exe not found, please install 7zip to C:\\Program Files\\7-Zip\\7z.exe")
+                        print(f"ERROR: 7z.exe not found in {programfiles} please install 7zip to C:\\Program Files\\7-Zip\\7z.exe")
                         exitpause("")
                 else:
                     with py7zr.SevenZipFile(archivename,'r') as archive:
@@ -357,8 +367,22 @@ def try_start_replay(replayfilepath):
                 newenginedir = os.path.join(barinstallpath, datafolder, 'engine' , enginedir)
                 if not os.path.exists(newenginedir):
                     os.makedirs(newenginedir)
-                with py7zr.SevenZipFile(archivename,'r') as archive:
-                    archive.extractall(path = newenginedir)
+                if platform.system() == 'Windows':
+                    programfiles = os.environ.get('PROGRAMFILES', 'C:\\Program Files')
+                    programfiles = os.path.join(programfiles, '7-Zip', "7z.exe")
+                    if os.path.exists(programfiles):
+                        un7zipcmd = f'"{programfiles}" x -y -o{newenginedir} {archivename}'
+                        print(un7zipcmd)
+                        retval = os.system(un7zipcmd)
+                        if retval != 0:
+                            print ("ERROR: 7z.exe failed to extract engine archive", archivename, "with return code", retval, "using command", un7zipcmd)
+                            exitpause("")
+                    else:
+                        print(f"ERROR: 7z.exe not found in {programfiles} please install 7zip to C:\\Program Files\\7-Zip\\7z.exe")
+                        exitpause("")
+                else:
+                    with py7zr.SevenZipFile(archivename,'r') as archive:
+                        archive.extractall(path = newenginedir)
             except Exception as e:
                 print ("Failed to extract engine archive", archivename, e)
                 exitpause("")
