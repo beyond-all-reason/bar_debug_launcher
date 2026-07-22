@@ -71,3 +71,27 @@ Use the BAR_Demo_Debug_Launcher_console.exe to get a console, open a ticket for 
 
 Exe is built without a console:
 pyinstaller --onefile --icon=bar-icon.ico --noconsole BAR_Debug_Launcher.py
+
+## Demo Replay Packet Analyzer
+
+Analyze `.sdfz` demo replay files from the command line to inspect packet traffic, bandwidth usage, and Lua message breakdowns.
+
+### Usage
+
+```bash
+python parse_demo_file.py [--bandwidth] demofile.sdfz
+```
+
+`--bandwidth` — Output a JSON report with per-packet-type bandwidth stats, per-player traffic, and Lua message classification. Without this flag, the full parsed demo contents are printed.
+
+### Example
+
+```bash
+python parse_demo_file.py --bandwidth path/to/replay.sdfz
+```
+
+The JSON report includes:
+- **total_packets** / **total_demo_stream_bytes** — overall stream size
+- **per_packet_type** — packet count, bytes, bandwidth %, and direction (client_to_server / server_to_client / broadcast / sync_debug) for each of the 30+ packet types
+- **per_player** — outbound/inbound bytes and bps per player, with top-5 packet types per player
+- **lua_message_breakdown** — classified Lua messages (CAMERA_LOCKCAMERA, RESOURCE_STATS, FPS_BROADCAST, etc.) with counts and bytes

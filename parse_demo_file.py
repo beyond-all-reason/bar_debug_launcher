@@ -10,9 +10,11 @@
 
 import gzip
 import logging
+import os
 import pprint
 import re
 import struct
+import tempfile
 import sys
 import threading
 import zlib
@@ -45,6 +47,8 @@ try:
         ScriptTeam,
     )
     from .demoparser import Demoparser
+    from .bandwidth_analyzer import BandwidthAnalyzer
+    from .lua_parser import LuaParser
     from django.conf import settings
 
     DEBUG = settings.DEBUG
@@ -62,6 +66,8 @@ except ImportError:
         ScriptTeam,
     )
     from demoparser import Demoparser
+    from bandwidth_analyzer import BandwidthAnalyzer
+    from lua_parser import LuaParser
 
     # direct import of settings module (not through Django means) to allow usage without Django installation
 #    from ..spring_replay_site.settings import DEBUG
@@ -478,7 +484,7 @@ class Parse_demo_file:
                 pass
         return stats
 
-    def parse_demostream(self):
+    def parse_demostream(self, bandwidth_analyzer=None):
         def _save_playerinfo(playername, key, value):
             if playername in self.players:
                 setattr(self.players[playername], key, value)
@@ -512,14 +518,33 @@ class Parse_demo_file:
         playerIDToName = {}
         ba_platform_stats = {}
         if DEBUG:
-            kop = open("/tmp/msg.data", "wb")
-            stats_fp = open("/tmp/stats.log", "wb")
+            tmpdir = tempfile.gettempdir()
+            kop = open(os.path.join(tmpdir, "msg.data"), "wb")
+            stats_fp = open(os.path.join(tmpdir, "stats.log"), "wb")
             stats_fp.write("gameID: {}\n".format(self.header["gameID"]).encode())
         demoparser = Demoparser()
+        lua_parser = LuaParser()
+        if bandwidth_analyzer is not None:
+            for pn, player in self.script.players.items():
+                if hasattr(player, 'name'):
+                    bandwidth_analyzer.player_names[pn] = player.name
+            for pn, spec in self.script.spectators.items():
+                if hasattr(spec, 'name'):
+                    bandwidth_analyzer.player_names[pn] = spec.name
         while packet:
             packet = self._readPacket()
+            if not packet:
+                break
             try:
                 messageData = demoparser.parsePacket(packet)
+                if bandwidth_analyzer is not None:
+                    raw_size = len(packet["data"])
+                    player_num = messageData.get("playerNum") if messageData else None
+                    bandwidth_analyzer.record_packet(messageData, raw_size, player_num)
+                    if messageData and messageData.get("cmd") == "luamsg":
+                        msg = messageData.get("msg", b"")
+                        lua_result = lua_parser.parse_lua_data(msg)
+                        bandwidth_analyzer.record_lua_classification(lua_result["name"], raw_size)
                 if DEBUG:
                     kop.write(repr(messageData).encode() + b"\n")
 
@@ -794,12 +819,15 @@ class Parse_demo_file:
                             pass
                     elif messageData["cmd"] == "mapdraw":
                         if messageData["command"] == 0 and len(messageData["label"]) > 3:
+                            label_val = messageData["label"]
+                            if isinstance(label_val, bytes):
+                                label_val = label_val.decode('utf-8', errors='replace')
                             self.additional["chat"].append(
                                 {
                                     "fromID": messageData["playerNum"],
                                     "playerName": messageData["playerName"],
                                     "toID": 254,
-                                    "message": b"Added Point: " + messageData["label"][1:-1],
+                                    "message": "Added Point: " + label_val[1:-1],
                                     "frame" : currentFrame,
                                 }
                             )
@@ -880,15 +908,33 @@ def main(argv=None):
     '''
     if len(argv) == 1 or argv[-1] in ["--winning-test", "--winning-test-header"]:
         print(
-            "Usage: %s [--winning-test] [--winning-test-header] demofile"
+            "Usage: %s [--winning-test] [--winning-test-header] [--bandwidth] demofile"
             % (argv[0])
         )
         return 1
     '''
 
     DEBUG = True  # command line use is always dev intended
+    do_bandwidth = "--bandwidth" in argv
     demo_file = Parse_demo_file(argv[-1])
     demo_file.check_magic()
+    if do_bandwidth:
+        analyzer = BandwidthAnalyzer()
+        demo_file.parse_header_and_script()
+        with gzip.open(demo_file.filename, "rb") as demo_file.demofile:
+            demo_file.parse_demostream(bandwidth_analyzer=analyzer)
+            demo_file.parse_winningAllyTeams()
+        game_duration = demo_file.header.get("gameTime", 0)
+        if isinstance(game_duration, str):
+            parts = game_duration.split(":")
+            if len(parts) == 3:
+                game_duration = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            elif len(parts) == 2:
+                game_duration = int(parts[0]) * 60 + int(parts[1])
+        analyzer.set_game_duration(float(game_duration))
+        report = analyzer.generate_report()
+        print(ujson.dumps(report, indent=2, default=str))
+        return 0
     demo_file.parse()
     #demo_file.upload_platform_stats()
 

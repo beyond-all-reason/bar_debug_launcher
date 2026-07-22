@@ -33,8 +33,7 @@ class Demoparser(object):
         self.players = PlayerDict()
 
     def write(self, varis, *keys):
-        # 	blacklist = ('newframe', 'playerinfo', 'luamsg', 'mapdraw', 'aicommand', 'self.playerstat')
-        blacklist = ("newframe", "playerinfo", "aicommand")
+        blacklist = ("newframe",)
         returnval = dict()
         if varis["cmd"] in blacklist:
             return
@@ -59,20 +58,22 @@ class Demoparser(object):
             return self.write(locals(), "cmd")
         elif cmd == 3:
             cmd = "quit"
-            return self.write(locals(), "cmd")
+            size = struct.unpack("<H", data[:2])[0]
+            reason = data[2:]
+            return self.write(locals(), "cmd", "size", "reason")
         elif cmd == 4:
             cmd = "startplaying"
             countdown = struct.unpack("<I", data)[0]
             return self.write(locals(), "cmd", "countdown")
         elif cmd == 5:
             cmd = "setplayernum"
-            playerNum = ord(data)
+            playerNum = data[0]
             return self.write(locals(), "cmd", "playerNum")
         elif cmd == 6:
             cmd = "setplayername"
             size, playerNum = struct.unpack("<BB", data[:2])
             playerName = data[2:]
-            if not playerNum in self.players:
+            if playerNum not in self.players:
                 self.players[playerNum] = playerName.strip(b"\0")
             return self.write(locals(), "cmd", "size", "playerNum", "playerName")
         elif cmd == 7:
@@ -95,12 +96,15 @@ class Demoparser(object):
             )
             return self.write(locals(), "cmd", "gameID")
         elif cmd == 10:
-            cmd = "NETMSG_PATH_CHECKSUM"
-            return self.write(locals(), "cmd")
+            cmd = "path_checksum"
+            playerNum = data[0]
+            checksum = struct.unpack("<I", data[1:5])[0]
+            playerName = self.players[playerNum] or ""
+            return self.write(locals(), "cmd", "playerNum", "playerName", "checksum")
         elif cmd == 11:
             cmd = "command"
             size, playerNum, cmdID, options = struct.unpack("<hBiB", data[:8])
-            params = struct.unpack("<%if" % ((len(data) - 6) / 4), data[8:])
+            params = struct.unpack("<%if" % ((len(data) - 8) / 4), data[8:])
             playerName = self.players[playerNum] or ""
             return self.write(
                 locals(),
@@ -127,62 +131,52 @@ class Demoparser(object):
             return self.write(locals(), "cmd", "playerNum", "playerName", "bPaused")
         elif cmd == 14:
             cmd = "aicommand"
-            size, playerNum, unitID, aiID, options = struct.unpack("<hBhiB", data[:10])
-            # params = struct.unpack('<%if'%((len(data)-10)/4), data[10:])
-            # playerName = self.players[playerNum] or ''
-            return dict()
-        # return self.write(locals(), 'cmd', 'size', 'playerNum', 'playerName', 'unitID', 'aiID', 'options', 'params')
-        elif cmd == 15:
-            return dict()
-            cmd = "aicommands"
-            msgsize, playerNum, unitIDCount = struct.unpack("<hBh", data[:5])
-            pos = (unitIDCount * 2) + 5
-            d = data[5:pos]
-            print("pos %d data %s" % (pos, d))
-            unitIDs = struct.unpack("<%dh" % (unitIDCount), data[5:pos])
-            commandCount = struct.unpack("<h", data[pos : pos + 2])[0]
-            pos += 2
-            commands = []
-            for i in xrange(commandCount):
-                cmdID, options, size = struct.unpack("<iBh", data[pos : pos + 7])
-                pos += 7
-                params = struct.unpack("<%if" % size, data[pos : pos + (4 * size)])
-                pos += 4 * size
-                commands.append((cmdID, options, size, params))
+            size, playerNum, aiId, aiTeamId, unitId, commandId, timeout, options, numParams = struct.unpack('<hBBBhiIBI', data[:20])
+            params = struct.unpack('<%if' % numParams, data[20:20 + 4 * numParams]) if numParams > 0 else ()
             playerName = self.players[playerNum] or ""
             return self.write(
-                locals(),
-                "cmd",
-                "msgsize",
-                "playerNum",
-                "playerName",
-                "unitIDCount",
-                "unitIDs",
-                "commands",
+                locals(), 'cmd', 'size', 'playerNum', 'playerName', 'aiId', 'aiTeamId',
+                'unitId', 'commandId', 'timeout', 'options', 'numParams', 'params'
+            )
+        elif cmd == 15:
+            cmd = "aicommands"
+            msgsize, playerNum, aiId, pairwise, refCmdId, refCmdOpts, refCmdSize, unitCount = struct.unpack('<hBBBIbHh', data[:14])
+            unitIds = struct.unpack('<%dh' % unitCount, data[14:14 + 2 * unitCount])
+            pos = 14 + 2 * unitCount
+            commandCount = struct.unpack('<H', data[pos:pos + 2])[0]
+            pos += 2
+            commands = []
+            for i in range(commandCount):
+                id_ = refCmdId if refCmdId != 0 else struct.unpack('<i', data[pos:pos + 4])[0]
+                pos += 4 if refCmdId == 0 else 0
+                optionBitmask = refCmdOpts if (refCmdOpts & 0xFF) != 255 else data[pos]
+                pos += 1 if (refCmdOpts & 0xFF) == 255 else 0
+                size_ = refCmdSize if refCmdSize != 65535 else struct.unpack('<H', data[pos:pos + 2])[0]
+                pos += 2 if refCmdSize == 65535 else 0
+                params = struct.unpack('<%if' % size_, data[pos:pos + 4 * size_]) if size_ > 0 else ()
+                pos += 4 * size_
+                commands.append((id_, optionBitmask, size_, params))
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), 'cmd', 'msgsize', 'playerNum', 'playerName', 'aiId', 'pairwise',
+                'refCmdId', 'refCmdOpts', 'refCmdSize', 'unitIds', 'commands'
             )
         elif cmd == 16:
             cmd = "aishare"
-            playerNum, sourceTeam, destTeam, metal, energy, unitIDCount = struct.unpack(
-                "<3Bffh", data[13:]
-            )
-            unitIDs = struct.unpack("<%ih" % unitIDCount, data[:13])
+            size = struct.unpack("<H", data[:2])[0]
+            playerNum, aiId, sourceTeam, destTeam = struct.unpack("<4B", data[2:6])
+            metal, energy = struct.unpack("<ff", data[6:14])
+            unitIDs = struct.unpack("<%dh" % ((len(data) - 14) // 2), data[14:]) if len(data) > 14 else ()
             playerName = self.players[playerNum] or ""
             return self.write(
                 locals(),
-                "cmd",
-                "playerNum",
-                "playerName",
-                "sourceTeam",
-                "destTeam",
-                "metal",
-                "energy",
-                "unitIDCount",
-                "unitIDs",
+                "cmd", "size", "playerNum", "playerName", "aiId",
+                "sourceTeam", "destTeam", "metal", "energy", "unitIDs"
             )
         elif cmd == 17:
             cmd = "memdump"
-            print("OMG A MEMORY DUMP")
-            return self.write(locals(), "cmd")
+            raw_size = len(data)
+            return self.write(locals(), "cmd", "raw_size")
         elif cmd == 19:
             cmd = "user_speed"
             playerNum, userSpeed = struct.unpack("<Bf", data)
@@ -198,7 +192,7 @@ class Demoparser(object):
             return self.write(locals(), "cmd", "cpuUsage")
         elif cmd == 22:
             cmd = "direct_control"
-            playerNum = ord(data)
+            playerNum = data[0]
             playerName = self.players[playerNum] or ""
             return self.write(locals(), "cmd", "playerNum", "playerName")
         elif cmd == 23:
@@ -209,11 +203,15 @@ class Demoparser(object):
                 locals(), "cmd", "playerNum", "playerName", "status", "heading", "pitch"
             )
         elif cmd == 25:
-            cmd = "attemptconnect"
-            size = struct.unpack("<H", data[:1])[0]
-            name, password, version = data[1:].split(b"\0", 2)
-            version = version.strip(b"\0")
-            return self.write(locals(), "cmd", "size", "name", "password", "version")
+            cmd = "attemptconnect_legacy"
+            size = struct.unpack("<H", data[:2])[0] if len(data) >= 2 else 0
+            remaining = data[2:] if len(data) > 2 else b""
+            parts = remaining.split(b"\0", 3)
+            name = parts[0] if len(parts) > 0 else b""
+            password = parts[1] if len(parts) > 1 else b""
+            version = parts[2].strip(b"\0") if len(parts) > 2 else b""
+            platform = parts[3].strip(b"\0") if len(parts) > 3 else b""
+            return self.write(locals(), "cmd", "size", "name", "password", "version", "platform")
         elif cmd == 26:
             cmd = "share"
             playerNum, shareTeam, shareUnits, shareMetal, shareEnergy = struct.unpack(
@@ -246,33 +244,66 @@ class Demoparser(object):
                 "energyShareFraction",
             )
         elif cmd == 28:
-            cmd = "sendself.playerstat"
-            return self.write(locals(), "cmd")
+            cmd = "sendself_playerstat"
+            raw_size = len(data)
+            return self.write(locals(), "cmd", "raw_size")
         elif cmd == 29:
-            cmd = "self.playerstat"  # fails
-            # playerNum, wtf = struct.unpack()
-            data = "unparsed"
-            return self.write(locals(), "cmd", "data")
+            cmd = "playerstat"
+            playerNum = data[0]
+            numCommands, unitCommands, mousePixels, mouseClicks, keyPresses = struct.unpack("<5i", data[1:21])
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "playerNum", "playerName",
+                "numCommands", "unitCommands", "mousePixels", "mouseClicks", "keyPresses"
+            )
         elif cmd == 30:
             cmd = "gameover"
-            return self.write(locals(), "cmd")
-        elif cmd == 31:  # okay, this fails on 0.80.x ... gotta check why.
-            cmd = "mapdraw"
-            #data = "unparsed"
+            size, playerNum = struct.unpack("<BB", data[:2])
+            winningAllyTeams = list(data[2:])
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "size", "playerNum", "playerName", "winningAllyTeams"
+            )
+        elif cmd == 31:
+            cmd = "mapdraw_old"
             size, playerNum, command = struct.unpack("<3B", data[:3])
             data = data[3:]
-            #print (cmd,command,data, size, playerNum)
-            if command == 0:  # point = 0, erase = 1, line = 2
+            if command == 0:
                 x, z = struct.unpack("<hh", data[:4])
                 label = data[4:]
-                #print (cmd,command, label)
                 playerName = self.players[playerNum] or ""
-                return self.write(locals(), "cmd", "playerNum", "playerName", "command", "x","z", "label")
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x", "z", "label")
             elif command == 1:
                 x, z = struct.unpack("<hh", data)
+                playerName = self.players[playerNum] or ""
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x", "z")
             elif command == 2:
-                x1, z1, x2, z2 = struct.unpack("<4hx", data)
-            return None
+                x1, z1, x2, z2 = struct.unpack("<4h", data[:8])
+                playerName = self.players[playerNum] or ""
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x1", "z1", "x2", "z2")
+            playerName = self.players[playerNum] or ""
+            return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command")
+        elif cmd == 32:
+            cmd = "mapdraw"
+            size, playerNum, command = struct.unpack("<3B", data[:3])
+            data = data[3:]
+            if command == 0:
+                x, z = struct.unpack("<ii", data[:8])
+                fromLua = bool(data[8]) if len(data) > 8 else False
+                label = data[9:].decode('utf-8', errors='replace').strip('\x00') if len(data) > 9 else ""
+                playerName = self.players[playerNum] or ""
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x", "z", "fromLua", "label")
+            elif command == 1:
+                x, z = struct.unpack("<ii", data[:8])
+                playerName = self.players[playerNum] or ""
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x", "z")
+            elif command == 2:
+                x1, z1, x2, z2 = struct.unpack("<4i", data[:16])
+                fromLua = bool(data[16]) if len(data) > 16 else False
+                playerName = self.players[playerNum] or ""
+                return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command", "x1", "z1", "x2", "z2", "fromLua")
+            playerName = self.players[playerNum] or ""
+            return self.write(locals(), "cmd", "size", "playerNum", "playerName", "command")
         elif cmd == 33:
             cmd = "syncresponse"
             playerNum, frameNum, checksum = struct.unpack("<BiI", data)
@@ -282,7 +313,7 @@ class Demoparser(object):
             )
         elif cmd == 35:
             cmd = "systemmsg"
-            size, playerNum = struct.unpack("<BB", data[:2])
+            size, playerNum = struct.unpack("<HHB", data[:5])[:2]
             message = data[2:]
             playerName = self.players[playerNum] or ""
             return self.write(
@@ -292,7 +323,7 @@ class Demoparser(object):
             cmd = "startpos"
             playerNum, team, ready, x, y, z = struct.unpack(
                 "<3B3f", data
-            )  # ready - 0 = not ready, 1 = ready, 2 = don't update readiness
+            )
             playerName = self.players[playerNum] or ""
             return self.write(
                 locals(),
@@ -309,7 +340,7 @@ class Demoparser(object):
             cmd = "playerinfo"
             playerNum, cpuUsage, ping = struct.unpack(
                 "<BfI", data
-            )  # ping is in number of frames
+            )
             playerName = self.players[playerNum] or ""
             return self.write(
                 locals(), "cmd", "playerNum", "playerName", "cpuUsage", "ping"
@@ -318,7 +349,7 @@ class Demoparser(object):
             cmd = "playerleft"
             playerNum, bIntended = struct.unpack(
                 "<BB", data
-            )  # 0 = lost connection, 1 = left, 2 = forced (kicked)
+            )
             readableIntended = {0: "lost connection", 1: "left", 2: "forced (kicked)"}[
                 bIntended
             ]
@@ -332,20 +363,49 @@ class Demoparser(object):
                 "readableIntended",
             )
         elif cmd == 41:
-            cmd = "NETMSG_SD_CHKREQUEST"
-            return self.write(locals(), "cmd")
+            cmd = "sd_chkrequest"
+            playerNum = data[0] if len(data) > 0 else 0
+            frameNum = struct.unpack("<i", data[1:5])[0] if len(data) >= 5 else 0
+            playerName = self.players.get(playerNum, "") or ""
+            return self.write(locals(), "cmd", "playerNum", "playerName", "frameNum")
         elif cmd == 42:
-            cmd = "NETMSG_SD_CHKRESPONSE"
-            return self.write(locals(), "cmd")
+            cmd = "sd_chkresponse"
+            size = struct.unpack("<H", data[:2])[0] if len(data) >= 2 else 0
+            playerNum = data[2] if len(data) > 2 else 0
+            inSync = data[3] if len(data) > 3 else 0
+            frameNum = struct.unpack("<i", data[4:8])[0] if len(data) >= 8 else 0
+            playerName = self.players.get(playerNum, "") or ""
+            return self.write(locals(), "cmd", "size", "playerNum", "playerName", "inSync", "frameNum")
         elif cmd == 43:
-            cmd = "NETMSG_SD_BLKREQUEST"
-            return self.write(locals(), "cmd")
+            cmd = "sd_blkrequest"
+            playerNum = data[0] if len(data) > 0 else 0
+            frameNum = struct.unpack("<i", data[1:5])[0] if len(data) >= 5 else 0
+            playerName = self.players.get(playerNum, "") or ""
+            return self.write(locals(), "cmd", "playerNum", "playerName", "frameNum")
         elif cmd == 44:
-            cmd = "NETMSG_SD_BLKRESPONSE"
-            return self.write(locals(), "cmd")
+            cmd = "sd_blkresponse"
+            size = struct.unpack("<H", data[:2])[0] if len(data) >= 2 else 0
+            playerNum = data[2] if len(data) > 2 else 0
+            inSync = data[3] if len(data) > 3 else 0
+            frameNum = struct.unpack("<i", data[4:8])[0] if len(data) >= 8 else 0
+            numChunks = struct.unpack("<i", data[8:12])[0] if len(data) >= 12 else 0
+            playerName = self.players.get(playerNum, "") or ""
+            return self.write(locals(), "cmd", "size", "playerNum", "playerName", "inSync", "frameNum", "numChunks")
         elif cmd == 45:
-            cmd = "NETMSG_SD_RESET"
+            cmd = "sd_reset"
             return self.write(locals(), "cmd")
+        elif cmd == 46:
+            cmd = "gamestate_dump"
+            frameNum = struct.unpack("<i", data)[0]
+            return self.write(locals(), "cmd", "frameNum")
+        elif cmd == 49:
+            cmd = "logmsg"
+            size, playerNum, logMsgLvl = struct.unpack("<HBB", data[:4])
+            msgData = data[4:].decode('utf-8', errors='replace').strip('\x00')
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "size", "playerNum", "playerName", "logMsgLvl", "msgData"
+            )
         elif cmd == 50:
             cmd = "luamsg"
             size, playerNum, script, mode = struct.unpack("<HBHB", data[:6])
@@ -366,46 +426,30 @@ class Demoparser(object):
         elif cmd == 51:
             cmd = "team"
             playerNum, action = struct.unpack("<BB", data[:2])
-            param = None
-            if action != 2:
-                param = data[2]
-
+            param = data[2] if len(data) > 2 and action != 2 else None
             if action == 1:
                 action = "giveaway"
-            # param is the recipient team
             elif action == 2:
                 action = "resign"
             elif action == 3:
                 action = "join_team"
-            # param is the team to join
             elif action == 4:
                 action = "team_died"
-            # team which had died (sent by all self.players to prevent cheating)
             elif action == 5:
                 action = "ai_created"
-            # team which is now controlled by a skirmish AI
             elif action == 6:
                 action = "ai_destroyed"
-            # team which had its controlling skirmish AI be destroyed
             playerName = self.players[playerNum] or ""
             return self.write(
                 locals(), "cmd", "playerNum", "playerName", "action", "param"
             )
         elif cmd == 52:
             cmd = "gamedata"
-            # f = open('gamedata.dat', 'w')
-            # f.return self.write(chr(52)+data)
-            # f.close()
             size, compressedSize = struct.unpack("<HH", data[:4])
-            setupText = zlib.decompress(data[4 : compressedSize + 4])
-            data = data[compressedSize + 4 :]
-            # print data
-            # print __import__('binascii').hexlify(data)
-            # return
-            # mapName, modName, data = data.split(b'\0', 2)
-            # print mapName, modName
-            if len(data) == 12:  # 0.80 or later
-                mapChecksum, modChecksum, randomSeed = struct.unpack("<3i", data)
+            setupText = zlib.decompress(data[4:4 + compressedSize])
+            remaining = data[4 + compressedSize:]
+            if len(remaining) == 12:
+                mapChecksum, modChecksum, randomSeed = struct.unpack("<3i", remaining)
                 return self.write(
                     locals(),
                     "cmd",
@@ -416,22 +460,28 @@ class Demoparser(object):
                     "modChecksum",
                     "randomSeed",
                 )
-            elif False:
-                print(__import__("binascii").hexlify(data))
-                script, mapName, modName, data = data.split(b"\0", 3)
-                print(script, mapName, modName)
-                print(len(data))
-                mapChecksum, modChecksum, randomSeed = struct.unpack("<3i", data)
-                print(mapChecksum, modChecksum, randomSeed)
-            # print size, compressedSize, setupText, mapChecksum, modChecksum, randomSeed
+            elif len(remaining) == 132:
+                mapChecksum = remaining[:64].hex()
+                modChecksum = remaining[64:128].hex()
+                randomSeed = struct.unpack("<i", remaining[128:132])[0]
+                return self.write(
+                    locals(),
+                    "cmd",
+                    "size",
+                    "compressedSize",
+                    "setupText",
+                    "mapChecksum",
+                    "modChecksum",
+                    "randomSeed",
+                )
             else:
-                data = "unparsed, old replay format"
-                return self.write(locals(), "cmd", "data")
+                data_str = "unparsed, old replay format"
+                return self.write(locals(), "cmd", "data_str")
         elif cmd == 53:
             cmd = "alliance"
             playerNum, otherAllyTeam, allianceState = struct.unpack(
                 "<3B", data
-            )  # 0 = not allied, 1 = allied
+            )
             readableAllianceState = {0: "not allied", 1: "allied"}[allianceState]
             playerName = self.players[playerNum] or ""
             return self.write(
@@ -453,29 +503,99 @@ class Demoparser(object):
             )
         elif cmd == 60:
             cmd = "teamstat"
-            data = "unparsed"
-            return self.write(locals(), "cmd", "data")
+            teamNum = data[0]
+            (frame, metalUsed, energyUsed, metalProduced, energyProduced,
+             metalExcess, energyExcess, metalReceived, energyReceived,
+             metalSent, energySent, damageDealt, damageReceived,
+             unitsProduced, unitsDied, unitsReceived, unitsSent,
+             unitsCaptured, unitsOutCaptured, unitsKilled) = struct.unpack("<20i", data[1:81])
+            return self.write(
+                locals(), "cmd", "teamNum",
+                "frame", "metalUsed", "energyUsed", "metalProduced", "energyProduced",
+                "metalExcess", "energyExcess", "metalReceived", "energyReceived",
+                "metalSent", "energySent", "damageDealt", "damageReceived",
+                "unitsProduced", "unitsDied", "unitsReceived", "unitsSent",
+                "unitsCaptured", "unitsOutCaptured", "unitsKilled"
+            )
+        elif cmd == 61:
+            cmd = "clientdata"
+            size = struct.unpack("<H", data[:2])[0]
+            playerNum = data[2]
+            compressed = data[3:size]
+            setupText = zlib.decompress(compressed).decode('utf-8', errors='replace').strip('\x00')
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "size", "playerNum", "playerName", "setupText"
+            )
         elif cmd == 65:
-            cmd = "NETMSG_ATTEMPTCONNECT"
-            return self.write(locals(), "cmd")
+            cmd = "attemptconnect"
+            size = struct.unpack("<H", data[:2])[0]
+            netversion = struct.unpack("<H", data[2:4])[0]
+            remaining = data[4:]
+            parts = remaining.split(b"\0", 3)
+            name = parts[0] if len(parts) > 0 else b""
+            password = parts[1] if len(parts) > 1 else b""
+            version = parts[2].strip(b"\0") if len(parts) > 2 else b""
+            platform = parts[3].strip(b"\0") if len(parts) > 3 else b""
+            reconnect = data[size - 2] if len(data) >= size - 1 else 0
+            netloss = data[size - 1] if len(data) >= size else 0
+            return self.write(
+                locals(), "cmd", "size", "netversion", "name", "password", "version", "platform", "reconnect", "netloss"
+            )
+        elif cmd == 66:
+            cmd = "reject_connect"
+            size = struct.unpack("<H", data[:2])[0]
+            reason = data[2:].decode('utf-8', errors='replace').strip('\x00')
+            return self.write(locals(), "cmd", "size", "reason")
         elif cmd == 70:
-            cmd = "NETMSG_AI_CREATED"
-            return self.write(locals(), "cmd")
+            cmd = "ai_created"
+            size, playerNum, whichSkirmishAI, team = struct.unpack("<4B", data[:4])
+            name = data[4:].decode('utf-8', errors='replace').strip('\x00')
+            playerName = self.players.get(playerNum, "") or ""
+            return self.write(
+                locals(), "cmd", "size", "playerNum", "playerName", "whichSkirmishAI", "team", "name"
+            )
         elif cmd == 71:
-            cmd = "NETMSG_AI_STATE_CHANGED"
-            return self.write(locals(), "cmd")
+            cmd = "ai_state_changed"
+            playerNum, whichSkirmishAI, newState = struct.unpack("<3B", data)
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "playerNum", "playerName", "whichSkirmishAI", "newState"
+            )
         elif cmd == 72:
-            cmd = "NETMSG_REQUEST_TEAMSTAT"
-            return self.write(locals(), "cmd")
+            cmd = "request_teamstat"
+            teamNum, statFrameNum = struct.unpack("<BH", data)
+            return self.write(locals(), "cmd", "teamNum", "statFrameNum")
         elif cmd == 75:
-            cmd = "NETMSG_CREATE_NEWPLAYER"
-            return self.write(locals(), "cmd")
+            cmd = "create_newplayer"
+            size, playerNum, spectator, teamNum = struct.unpack("<hBBB", data[:5])
+            playerName = data[5:].decode('utf-8', errors='replace').strip('\x00')
+            if playerNum not in self.players:
+                self.players[playerNum] = playerName.encode()
+            return self.write(
+                locals(), "cmd", "size", "playerNum", "playerName", "spectator", "teamNum"
+            )
         elif cmd == 76:
-            cmd = "NETMSG_AICOMMAND_TRACKED"
-            return self.write(locals(), "cmd")
+            cmd = "aicommand_tracked"
+            size, playerNum, aiId, unitId, commandId, options, aiCommandId = struct.unpack('<hBBhIBi', data[:15])
+            remaining = len(data) - 15
+            numParams = remaining // 4 if remaining > 0 else 0
+            params = struct.unpack('<%if' % numParams, data[15:15 + 4 * numParams]) if numParams > 0 else ()
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), 'cmd', 'size', 'playerNum', 'playerName', 'aiId', 'unitId',
+                'commandId', 'options', 'aiCommandId', 'numParams', 'params'
+            )
         elif cmd == 77:
-            cmd = "NETMSG_GAME_FRAME_PROGRESS"
-            return self.write(locals(), "cmd")
+            cmd = "game_frame_progress"
+            frameNum = struct.unpack("<i", data)[0]
+            return self.write(locals(), "cmd", "frameNum")
+        elif cmd == 78:
+            cmd = "ping"
+            playerNum, pingTag, localTime = struct.unpack("<BBf", data)
+            playerName = self.players[playerNum] or ""
+            return self.write(
+                locals(), "cmd", "playerNum", "playerName", "pingTag", "localTime"
+            )
         else:
             pass
-            # logger.debug("Unknown cmd found. packet: %s cmd: %s data: %s", packet, cmd, data)
