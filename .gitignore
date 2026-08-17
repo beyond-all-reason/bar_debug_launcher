@@ -1,0 +1,5 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+bar_debug_launcher_config.json
+bar_debug_launcher_script.txt

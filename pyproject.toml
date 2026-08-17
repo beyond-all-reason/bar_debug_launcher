@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bar_launch"
+version = "0.1.0"
+description = "BAR / Recoil dev launcher: shared core, CLI, and Tk GUI"
+requires-python = ">=3.10"
+dependencies = [
+    "py7zr",
+    "requests",
+    "six",
+]
+
+[project.scripts]
+bar-launch = "bar_launch.__main__:main"
+
+[tool.setuptools]
+packages = ["bar_launch"]
+py-modules = ["slpp", "demoparser", "parse_demo_file", "script", "BAR_Debug_Launcher"]
