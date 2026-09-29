@@ -1,3 +1,4 @@
 py7zr
 requests == 2.28.1
 six
+setuptools==80.9.0
