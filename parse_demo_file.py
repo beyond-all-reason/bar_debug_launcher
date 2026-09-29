@@ -9,12 +9,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import gzip
+import io
 import logging
-import os
 import pprint
 import re
 import struct
-import tempfile
 import sys
 import threading
 import zlib
@@ -518,9 +517,8 @@ class Parse_demo_file:
         playerIDToName = {}
         ba_platform_stats = {}
         if DEBUG:
-            tmpdir = tempfile.gettempdir()
-            kop = open(os.path.join(tmpdir, "msg.data"), "wb")
-            stats_fp = open(os.path.join(tmpdir, "stats.log"), "wb")
+            kop = io.BytesIO()
+            stats_fp = io.BytesIO()
             stats_fp.write("gameID: {}\n".format(self.header["gameID"]).encode())
         demoparser = Demoparser()
         lua_parser = LuaParser()
@@ -845,10 +843,6 @@ class Parse_demo_file:
                 logger.error("FIXME: to broad exception handling.")
                 logger.exception("Exception parsing packet '%s': %s", packet, exc)
                 # raise e
-
-        if DEBUG:
-            kop.close()
-            stats_fp.close()
 
         for pnum, player in self.players.items():
             if not hasattr(player, "connected"):

@@ -33,10 +33,7 @@ class Demoparser(object):
         self.players = PlayerDict()
 
     def write(self, varis, *keys):
-        blacklist = ("newframe",)
         returnval = dict()
-        if varis["cmd"] in blacklist:
-            return
         for key in keys:
             item = varis[key]
             returnval[key] = item

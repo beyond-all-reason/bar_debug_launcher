@@ -161,6 +161,27 @@ class ScriptPlayer(ScriptObject):
 class ScriptAI(ScriptObject):
     req_keys = ["host", "shortname"]
 
+    def __init__(self, section, data):
+        if isinstance(section, bytes):
+            section = section.decode("utf-8")
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        _i = 0
+        while not section[_i].isdigit():
+            _i += 1
+        self.num = int(section[_i:])
+
+        kvs = re.findall("(?P<key>.*?)=(?P<value>.*?);", data.strip(), re.DOTALL)
+        for key, value in kvs:
+            setattr(self, key, try_make_numeric(value))
+
+        if not hasattr(self, "host"):
+            self.host = ""
+        if not hasattr(self, "shortname"):
+            self.shortname = ""
+        if not hasattr(self, "name"):
+            self.name = section
+
 
 class ScriptAlly(ScriptObject):
     req_keys = ["numallies"]
