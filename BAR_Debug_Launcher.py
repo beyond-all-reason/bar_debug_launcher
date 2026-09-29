@@ -12,6 +12,7 @@ import subprocess
 import shlex
 import sys
 import shutil
+import traceback
 import requests
 try:
     import py7zr
@@ -161,6 +162,34 @@ def findengines(enginefolder):
         engines["NO ENGINES FOUND!"] = "NO ENGINES FOUND!"
     return engines,enginedirs
 
+def dump_path_diagnostics(context, path):
+    print(f"===== parsecache diagnostics: {context} =====")
+    print("  requested path        :", path)
+    print("  os.path.exists(path)  :", os.path.exists(path))
+    print("  os.path.isdir(path)   :", os.path.isdir(path))
+    print("  barinstallpath        :", barinstallpath)
+    print("  datafolder            :", datafolder)
+    print("  cwd                   :", os.getcwd())
+    print("  sys.argv[0]           :", sys.argv[0])
+    print("  platform              :", platform.system())
+    parent = os.path.dirname(path)
+    print("  parent path           :", parent)
+    print("  parent isdir          :", os.path.isdir(parent))
+    if os.path.isdir(parent):
+        print("  parent contents:")
+        for entry in sorted(os.listdir(parent)):
+            full = os.path.join(parent, entry)
+            print("    -", entry, "(dir)" if os.path.isdir(full) else "(file)")
+    if os.path.isdir(path):
+        entries = sorted(os.listdir(path))
+        print("  path contents:")
+        if not entries:
+            print("    (empty)")
+        for entry in entries:
+            full = os.path.join(path, entry)
+            print("    -", entry, "(dir)" if os.path.isdir(full) else "(file)")
+    print("===================================================")
+
 # returns three dicts from archivecach
 def parsecache(path):
     global archivecache           
@@ -178,26 +207,33 @@ def parsecache(path):
                         print ("Found a cache file",cachedir,  archivecachefile, "last modified:", lastmodified)
                         cachefiles.append((archivecachefilepath, lastmodified))
 
-        if len(cachefiles) > 0:
-            cachefiles = sorted(cachefiles, key = lambda x:[1], reverse = True)
-            archivecachefilepath = cachefiles[0][0]
-            print ("Loading Archive Cache File:", archivecachefilepath)
-            archivecachecontents = open(archivecachefilepath).read()
-            archivetable = '{' + archivecachecontents.partition('{')[2].rpartition('}')[0] +  '}'
-            archivetable = slpp.decode(archivetable)
-            for archive in archivetable['archives']:
-                if 'archivedata' in archive and 'modtype' in archive['archivedata']:
-                    archivedata = archive['archivedata']
-                    modtype = archivedata['modtype']
-                    if modtype == 3: # map
-                        maps[archivedata['name']] = archive['name']
-                    elif modtype == 5: #menu
-                        menus[archivedata['name']] = archive['name']
-                    elif modtype == 1: #game
-                        games[archivedata['name']] = archive['name']
-            print (f"Found {len(maps)} maps, {len(games)} games, {len(menus)} menus")
+        if len(cachefiles) == 0:
+            print ("parsecache: no archivecache*.lua files found under", path)
+            dump_path_diagnostics("no cache files found", path)
+            return maps, games, menus
+
+        cachefiles = sorted(cachefiles, key = lambda x:[1], reverse = True)
+        archivecachefilepath = cachefiles[0][0]
+        print ("Loading Archive Cache File:", archivecachefilepath)
+        archivecachecontents = open(archivecachefilepath).read()
+        archivetable = '{' + archivecachecontents.partition('{')[2].rpartition('}')[0] +  '}'
+        archivetable = slpp.decode(archivetable)
+        for archive in archivetable['archives']:
+            if 'archivedata' in archive and 'modtype' in archive['archivedata']:
+                archivedata = archive['archivedata']
+                modtype = archivedata['modtype']
+                if modtype == 3: # map
+                    maps[archivedata['name']] = archive['name']
+                elif modtype == 5: #menu
+                    menus[archivedata['name']] = archive['name']
+                elif modtype == 1: #game
+                    games[archivedata['name']] = archive['name']
+        print (f"Found {len(maps)} maps, {len(games)} games, {len(menus)} menus")
     except Exception as e:
-        print ("parsecache error, dont code blind!", e)
+        print ("parsecache error:", repr(e))
+        dump_path_diagnostics("failed to read archive cache", path)
+        print ("  traceback:")
+        print (traceback.format_exc())
     return maps, games, menus
 
 def refresh():
