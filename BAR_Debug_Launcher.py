@@ -198,21 +198,32 @@ def parsecache(path):
     menus = {}
     try:
         cachefiles = []
-        for cachedir in os.listdir(path):
-            if os.path.isdir(os.path.join(path,cachedir)):
-                for archivecachefile in os.listdir(os.path.join(path,cachedir)):
-                    if 'archivecache' in archivecachefile.lower() and archivecachefile.lower().endswith('.lua'):
-                        archivecachefilepath = os.path.join(path,cachedir, archivecachefile)
-                        lastmodified = os.path.getmtime(archivecachefilepath)
-                        print ("Found a cache file",cachedir,  archivecachefile, "last modified:", lastmodified)
-                        cachefiles.append((archivecachefilepath, lastmodified))
+        # Search the cache root and its immediate subdirectories.
+        cachedirs = [path]
+        cachedirs.extend(
+            os.path.join(path, entry)
+            for entry in os.listdir(path)
+            if os.path.isdir(os.path.join(path, entry))
+        )
 
+        for cachedir in cachedirs:
+            for filename in os.listdir(cachedir):
+                filepath = os.path.join(cachedir, filename)
+                if (
+                    os.path.isfile(filepath)
+                    and 'archivecache' in filename.lower()
+                    and filename.lower().endswith('.lua')
+                ):
+                    modified = os.path.getmtime(filepath)
+                    print("Found a cache file", filepath,
+                          "last modified:", modified)
+                    cachefiles.append((filepath, modified))
         if len(cachefiles) == 0:
             print ("parsecache: no archivecache*.lua files found under", path)
             dump_path_diagnostics("no cache files found", path)
             return maps, games, menus
 
-        cachefiles = sorted(cachefiles, key = lambda x:[1], reverse = True)
+        cachefiles = sorted(cachefiles, key=lambda x: x[1], reverse=True)
         archivecachefilepath = cachefiles[0][0]
         print ("Loading Archive Cache File:", archivecachefilepath)
         archivecachecontents = open(archivecachefilepath).read()
